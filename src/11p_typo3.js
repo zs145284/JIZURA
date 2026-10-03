@@ -42,7 +42,7 @@ function cornerSpot(env, bb, w, h, P) {
   }
   return { x: m, y: m, ok: false, sx: -1, sy: -1 };
 }
-const label = (env, text, x, y, o = {}) => env.draw({ text: String(text), font: o.font || monoF(env), size: o.size || FS(env), x, y, align: o.align || 'left', track: o.track ?? 0.12, color: o.color || env.sc.sub, alpha: o.alpha ?? 1, ghost: false });
+const label = (env, text, x, y, o = {}) => env.draw({ text: String(text), font: o.font || monoF(env), size: o.size || FS(env), x, y, align: o.align || 'left', track: o.track ?? 0.12, color: o.color || env.sc.sub, alpha: o.alpha ?? 1, ghost: false, metadata:o.metadata, textRole:o.textRole });
 const textW = (text, font, size, track = 0.12) => J.measure({ text, font, size, track }).w;
 const keyChar = (text) => {
   const arr = [...String(text || '')];
@@ -78,19 +78,20 @@ reg('decor', 'tyColophon', {
     const rj = J.romaji(raw); const rom = rj && /[ぁ-ヿ]/.test(raw) ? rj.toUpperCase() : null;
     const lt = String(cut.lineText || txt).replace(/\s+/g, ' ').trim();
     const lines = [
-      [lt.length > 18 ? [...lt].slice(0, 17).join('') + '…' : lt, bodyF(env), sc.fg],
-      [`No.${pad2((cut.line | 0) + 1)}  ${J.fmtTime(cut.start)} – ${J.fmtTime(cut.end)}`, monoF(env), sc.sub],
-      [`${J.glyphCount(txt)} CHARS${rom ? '  /  ' + (rom.length > 16 ? rom.slice(0, 15) + '…' : rom) : ''}`, monoF(env), sc.sub],
-    ];
+      [lt.length > 18 ? [...lt].slice(0, 17).join('') + '…' : lt, bodyF(env), sc.fg, null, 'context'],
+      [`No.${pad2((cut.line | 0) + 1)}  ${J.fmtTime(cut.start)} – ${J.fmtTime(cut.end)}`, monoF(env), sc.sub, 'time'],
+      [`${J.glyphCount(txt)} CHARS${rom ? '  /  ' + (rom.length > 16 ? rom.slice(0, 15) + '…' : rom) : ''}`, monoF(env), sc.sub, 'no'],
+    ].filter(row => (!row[3] || J.metadataVisible(env,row[3])) && (row[4] !== 'context' || J.lyricContextVisible(env)));
+    if (!lines.length) return;
     let w = 0; for (const [t, f] of lines) w = Math.max(w, textW(t, f, fs));
     const h = lead * lines.length;
     const sp = cornerSpot(env, bb, w + fs * 1.4, h, Object.assign({}, Pd, { low: Pd.low !== false }));
     if (!sp.ok) return;
     const x = sp.x + fs * 1.4, e = inE(env, 0.6) * o;
     env.line([[sp.x, sp.y], [sp.x, sp.y + h * e]], accentOf(sc), Math.max(1.5, 2 * u), o, false);
-    lines.forEach(([t, f, c], i) => {
+    lines.forEach(([t, f, c, metadata, textRole], i) => {
       const arr = [...t], k = Math.floor(arr.length * clamp((env.lt - 0.1 - i * 0.14) / 0.45));
-      if (k > 0) label(env, arr.slice(0, k).join(''), x, sp.y + lead * (i + 0.5), { font: f, size: fs, color: c, alpha: o * (i ? 0.85 : 1) });
+      if (k > 0) label(env, arr.slice(0, k).join(''), x, sp.y + lead * (i + 0.5), { font: f, size: fs, color: c, alpha: o * (i ? 0.85 : 1), metadata, textRole });
     });
   },
 });
@@ -104,13 +105,13 @@ reg('decor', 'tyRunningHead', {
     const o = outE(env); if (o <= 0.003 || env.lt < 0) return;
     const fs = FS(env) * 0.9, e = inE(env, 0.7) * o, lw = Math.max(1, u);
     const yH = m + fs * 0.6;
-    if (!hitBB(0, yH - fs, W, yH + fs, bb, 8 * u)) {
+    if (J.lyricContextVisible(env) && !hitBB(0, yH - fs, W, yH + fs, bb, 8 * u)) {
       const head = `${pad2((cut.line | 0) + 1)}　${String(cut.lineText || cut.text || '').replace(/\s+/g, ' ').trim()}`;
       const hs = [...head].slice(0, 30).join('');
       const tw = textW(hs, bodyF(env), fs, 0.2);
       const right = !!Pd.right;
       const x0 = right ? W - m - tw : m;
-      label(env, hs, x0, yH, { font: bodyF(env), size: fs, color: sc.sub, alpha: e, track: 0.2 });
+      label(env, hs, x0, yH, { textRole:'context', font: bodyF(env), size: fs, color: sc.sub, alpha: e, track: 0.2 });
       const a0 = right ? x0 - fs : x0 + tw + fs, a1 = right ? m : W - m;
       if ((a1 - a0) * (right ? -1 : 1) > 20) env.line([[a0, yH], [lerp(a0, a1, e), yH]], sc.sub, lw, 0.6 * o, false);
     }

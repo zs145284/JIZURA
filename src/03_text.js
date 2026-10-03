@@ -12,6 +12,20 @@ J.PT = (dx = 0, dy = 0, rot = 0, s = 1, st = 1, sdir = 0, a = 1) => ({ dx, dy, r
    small gap to Japanese. Only the size / advance of each glyph changes, so every layout keeps working. */
 J.TYPESET = false;
 J.setTypeset = on => { J.TYPESET = !!on; };
+// Fit/layout scaling is uniform; explicit animation transforms are applied
+// after preparation and remain available to enter/hold/exit effects.
+J.GLYPH_ASPECT = 'preserve';
+J.setGlyphAspect = mode => { J.GLYPH_ASPECT = mode === 'expressive' ? 'expressive' : 'preserve'; };
+J.prepareTextItem = it => {
+  if (it._aspectReady) return it;
+  if (J.GLYPH_ASPECT === 'preserve' && !it.projected) {
+    const sx = it.sx ?? 1, sy = it.sy ?? 1;
+    const k = Math.min(Math.abs(sx), Math.abs(sy));
+    it.sx = Math.sign(sx) * k; it.sy = Math.sign(sy) * k;
+  }
+  it._aspectReady = true;
+  return it;
+};
 const HIRA = /[ぁ-ゟ]/, KATA = /[゠-ヿㇰ-ㇿ]/, KANJI = /[㐀-鿿豈-﫿々〆]/, LATIN = /[A-Za-z0-9]/;
 const PARTICLES = 'はがをにでとのへも';
 const cls = ch => (!ch ? '' : LATIN.test(ch) ? 'L' : KANJI.test(ch) ? 'K' : KATA.test(ch) ? 'T' : HIRA.test(ch) ? 'H' : /\s/.test(ch) ? 'S' : 'P');
@@ -156,8 +170,13 @@ J.decoTextKind = (t) => {
   if ((t.match(/[A-Za-z]/g) || []).length <= 5 && /^[A-Za-z#№.\s\d\/\-–—+×x%:,'°]+$/.test(t)) return 'no';
   return null;
 };
-J.hideDecoText = (env, text) => {
-  const fx = env.fx || {};
+J.metadataVisible = (env, kind) => {
+  const fx = env.fx || env.plan?.fx || {};
+  return fx.hud !== 'off' && !(kind === 'no' ? fx.hideNo : kind === 'time' ? fx.hideTime : false);
+};
+J.hideDecoText = (env, text, metadata) => {
+  if (metadata) return !J.metadataVisible(env, metadata);
+  const fx = env.fx || env.plan?.fx || {};
   if (!fx.hideNo && !fx.hideTime) return false;
   const k = J.decoTextKind(text);
   if (!k || !(k === 'no' ? fx.hideNo : fx.hideTime)) return false;
@@ -165,11 +184,12 @@ J.hideDecoText = (env, text) => {
   return !lyr.includes(String(text).trim());
 };
 J.drawItem = (env, it) => {
+  it = J.prepareTextItem(it);
   const ctx = env.ctx;
   const ghostPass = env.pass !== 'main';
   if (ghostPass && it.ghost === false) return null;
   if (!it.text || it.size <= 0.5) return null;
-  if (J.hideDecoText(env, it.text)) return null;
+  if (J.hideDecoText(env, it.text, it.metadata) || J.hideLyricContext?.(env,it)) return null;
   if (!env.inLayer && !env.glyphLog && !env.hideText && env.allowFilter && !it.pieceFn && ((it.blur || 0) > 0.4 || (it.shadow && !ghostPass && (it.shadow.blur || 0) * (env.scale || 1) > 6))) {
     const r = drawItemLayered(env, it);
     if (r !== undefined) return r;
@@ -222,14 +242,18 @@ J.drawItem = (env, it) => {
     const gy = g.y * sy + g.vy * sy + (c ? c.dy || 0 : 0);
     const crot = (c ? c.rot || 0 : 0) + (g.r90 ? 90 : 0);
     const csx = sx * cs * (c && c.sx ? c.sx : 1), csy = sy * cs * (c && c.sy ? c.sy : 1);
-    const gcol = (!ghostPass && c && c.color) || col;
+    const emphasis = J.wordEmphasisState ? J.wordEmphasisState(env, it, g.i) : {active:false,amount:0};
+    const active = emphasis.active;
+    const normalCol = (!ghostPass && c && c.color) || col;
+    const accent = env.sc && env.sc.accent || normalCol;
+    const gcol = active ? J.emphasisColor(normalCol, accent, emphasis) : normalCol;
     boxes.push({ x: gx, y: gy, w: g.w * sx * cs / (g.fs || 1), h: g.h * sy * cs / (g.fs || 1) });
     // モーフ: record where each glyph ends up (device space) / leave the glyphs out while the morph draws them
     if (env.glyphLog && !ghostPass) {
       ctx.save(); ctx.translate(gx, gy); if (crot) ctx.rotate(crot * J.DEG); if (csx !== 1 || csy !== 1) ctx.scale(csx, csy);
       const T = ctx.getTransform(); ctx.restore();
       env.glyphLog.push({ ch, m: [T.a, T.b, T.c, T.d, T.e, T.f], font: ctx.font, px: size, color: typeof gcol === 'string' ? gcol : (it.color || '#fff'), a: a * (fill ? fillA : 1),
-        stroke: it.stroke > 0 ? it.stroke : 0, strokeColor: typeof sCol === 'string' ? sCol : null, fill: fill && !(c && c.outline) });
+        stroke: it.stroke > 0 ? it.stroke : 0, strokeColor: typeof sCol === 'string' ? sCol : null, fill: fill && !(c && c.outline), sourceIndex: it.lyricCopy ? null : it.lyricIndices && it.lyricIndices[g.i], wordActive: !!active });
     }
     if (env.hideText) continue;
     // ---- piece mode ----
@@ -254,17 +278,26 @@ J.drawItem = (env, it) => {
       for (let k = ext.n; k >= 1; k--) { ctx.globalAlpha = a * ea * (ext.fade ? 1 - (k - 1) / ext.n * 0.85 : 1); ctx.fillText(ch, ext.dx * k / ext.n / csx, ext.dy * k / ext.n / csy); }
       ctx.globalAlpha = a;
     }
-    if (fill && !outlineOnly && fillA > 0.002 && dash == null) { ctx.globalAlpha = a * fillA; ctx.fillStyle = grad || gcol; ctx.fillText(ch, 0, 0); ctx.globalAlpha = a; }
+    const fillCol = active && emphasis.mode === 'accent' ? gcol : grad || gcol;
+    const fillGlyph = alpha => { ctx.globalAlpha = alpha; ctx.fillStyle = fillCol; ctx.fillText(ch, 0, 0);
+      if(active && emphasis.mode === 'soft' && grad && emphasis.amount > 0) { ctx.globalAlpha = alpha * emphasis.amount; ctx.fillStyle = accent; ctx.fillText(ch, 0, 0); } ctx.globalAlpha = a; };
+    if (fill && !outlineOnly && fillA > 0.002 && dash == null) fillGlyph(a * fillA);
     if (it.stroke > 0 || outlineOnly || dash != null) {
       if (shadow && fill) { ctx.shadowColor = 'rgba(0,0,0,0)'; }
       ctx.lineJoin = 'round'; ctx.miterLimit = 2;
       ctx.lineWidth = (it.stroke > 0 ? it.stroke : Math.max(1, size * 0.02)) / Math.sqrt(Math.abs(csx * csy));
-      ctx.strokeStyle = (!ghostPass && c && c.color) || sCol;
+      const normalStroke = (!ghostPass && c && c.color) || sCol;
+      ctx.strokeStyle = active ? J.emphasisColor(normalStroke, accent, emphasis) : normalStroke;
       if (dash != null) { const L = size * 3.2; ctx.setLineDash([Math.max(0.01, L * dash), L]); ctx.lineDashOffset = 0; }
       else if (it.strokeDash) ctx.setLineDash(it.strokeDash);
       ctx.strokeText(ch, 0, 0);
       ctx.setLineDash([]);
-      if (fill && !outlineOnly && (it.strokeUnder || (dash != null && fillA > 0.002))) { ctx.globalAlpha = a * (dash != null ? fillA : 1); ctx.fillStyle = grad || gcol; ctx.fillText(ch, 0, 0); }
+      if (fill && !outlineOnly && (it.strokeUnder || (dash != null && fillA > 0.002))) fillGlyph(a * (dash != null ? fillA : 1));
+    }
+    if (active && emphasis.mode === 'accent' && J.contrast(accent, normalCol) < 1.6) {
+      const outline = [env.sc.bg, env.sc.fg, '#000000', '#ffffff'].sort((a,b) => J.contrast(b, accent) - J.contrast(a, accent))[0];
+      ctx.shadowColor = 'transparent'; ctx.strokeStyle = outline; ctx.lineJoin = 'round';
+      ctx.lineWidth = Math.max(1.5, size * 0.025) / Math.sqrt(Math.abs(csx * csy)); ctx.strokeText(ch, 0, 0);
     }
     ctx.restore();
   }
@@ -284,6 +317,10 @@ J.weightNow = (env) => {
 };
 J.varFontCSS = (key, px, e) => {
   const f = J.FONTS[key] || {}, serif = f.kind === 'mincho';
+  if (f.local) {
+    const [lo, hi] = f.weightRange || [f.weight, f.weight];
+    return `${Math.round(lo + e * (hi - lo))} ${px.toFixed(2)}px ${f.family},${f.fb}`;
+  }
   const w = Math.round(serif ? 200 + e * 700 : 100 + e * 800);
   return `${w} ${px.toFixed(2)}px ${serif ? '"Noto Serif JP"' : '"Noto Sans JP"'},${f.fb || 'sans-serif'}`;
 };
@@ -374,7 +411,7 @@ J.textPattern = (ctx, kind, color, bg, size, scale) => {
 };
 
 /* measure an item's laid-out size in design px (after sx/sy) */
-J.measure = (it) => { const l = J.layoutText(it); return { w: l.W * (it.sx || 1), h: l.H * (it.sy || 1), lay: l }; };
+J.measure = (it) => { const p = J.prepareTextItem(Object.assign({}, it)); const l = J.layoutText(p); return { w: l.W * (p.sx || 1), h: l.H * (p.sy || 1), lay: l }; };
 
 /* size that makes text fit a box */
 J.fitSize = (text, font, maxW, maxH, opt = {}) => {

@@ -68,7 +68,7 @@ const onCol = (sc, fill) => {
 const plateCol = (sc, pref) => { for (const c of pref) if (c && J.contrast(c, sc.bg) >= 1.6) return c; return sc.fg; };
 const accentOn = (sc) => (J.contrast(sc.accent, sc.bg) >= 1.8 ? sc.accent : sc.fg);
 /* small annotation label (main pass only) */
-const label = (env, text, x, y, o = {}) => env.draw(Object.assign({ text: String(text), font: o.font || monoF(env), size: o.size || J.clamp(Math.min(env.W, env.H) * 0.018, 11, 22), x, y, align: o.align || 'left', track: o.track ?? 0.12, color: o.color || env.sc.sub, alpha: o.alpha ?? 1, ghost: false }, o.extra || {}));
+const label = (env, text, x, y, o = {}) => env.draw(Object.assign({ text: String(text), font: o.font || monoF(env), size: o.size || J.clamp(Math.min(env.W, env.H) * 0.018, 11, 22), x, y, align: o.align || 'left', track: o.track ?? 0.12, color: o.color || env.sc.sub, alpha: o.alpha ?? 1, ghost: false, metadata:o.metadata }, o.extra || {}));
 const isLatinT = t => /[A-Za-z]/.test(t) && !/[\u3040-\u30ff\u3400-\u9fff\uff00-\uffef]/.test(t);
 const labelSize = env => J.clamp(Math.min(env.W, env.H) * 0.018, 11, 22);
 
@@ -138,7 +138,10 @@ reg('tyKeySplit', {
         env.line([[xb, y], [J.lerp(xb, xa, e), y]], sc.sub, lw, 0.7, false);
       }
     }
-    const big = { text: key, font: Pm.font, size: bigS, x: bx, y: by, color: Pm.big === 'accent' ? accentOn(sc) : sc.fg, mi: 2 };
+    const beforeN = [...clean(before)].length;
+    if (itB) itB.lyricOffset = 0;
+    if (itA) itA.lyricOffset = beforeN + [...clean(key)].length;
+    const big = { text: key, lyricOffset: beforeN, font: Pm.font, size: bigS, x: bx, y: by, color: Pm.big === 'accent' ? accentOn(sc) : sc.fg, mi: 2 };
     if (Pm.big === 'outline') Object.assign(big, { fill: false, stroke: Math.max(1.5, bigS * 0.014), strokeColor: sc.fg });
     let bb = J.mainDraw(env, big);
     if (itB) bb = U(bb, J.mainDraw(env, itB));
@@ -234,8 +237,8 @@ reg('tyCross', {
     const kb = J.mainDraw(env, Object.assign({}, base, { text: K, x: cx, y: cy, color: Pm.key === 'accent' ? accentOn(sc) : sc.fg, mi: 1 }));
     bb = U(bb, kb);
     if (B) bb = U(bb, J.mainDraw(env, Object.assign({}, base, { text: B, align: 'left', x: cx + kw * k / 2 + g, y: cy, mi: 2 })));
-    if (A) { const h = h100(A) * k; bb = U(bb, J.mainDraw(env, Object.assign({}, base, { text: A, vertical: true, x: cx, y: cy - size / 2 - g - h / 2, mi: 3 }))); }
-    if (B) { const h = h100(B) * k; bb = U(bb, J.mainDraw(env, Object.assign({}, base, { text: B, vertical: true, x: cx, y: cy + size / 2 + g + h / 2, mi: 4 }))); }
+    if (A) { const h = h100(A) * k; bb = U(bb, J.mainDraw(env, Object.assign({}, base, { text: A, lyricCopy: true, vertical: true, x: cx, y: cy - size / 2 - g - h / 2, mi: 3 }))); }
+    if (B) { const h = h100(B) * k; bb = U(bb, J.mainDraw(env, Object.assign({}, base, { text: B, lyricCopy: true, vertical: true, x: cx, y: cy + size / 2 + g + h / 2, mi: 4 }))); }
     const la = E.outCubic(J.clamp((lt - 0.35) / 0.3)) * out;
     if (la > 0) label(env, `${pad2(ki + 1)}×${pad2(ki + 1)}`, cx + size * 0.62, cy - size * 0.62, { alpha: la, size: labelSize(env) * 0.9 });
     return bb;
@@ -513,7 +516,7 @@ reg('tyIndexTable', {
     if (e0 > 0) {
       env.line([[x0, top], [J.lerp(x0, x1, e0), top]], sc.fg, lw * 2, 0.9, false);
       env.line([[x0, top + n * rowH], [J.lerp(x0, x1, e0), top + n * rowH]], sc.fg, lw * 2, 0.9, false);
-      if (Pm.head) {
+      if (Pm.head && J.metadataVisible(env, 'no')) {
         label(env, 'No.', x0, top - fs * 0.9, { alpha: e0, size: fs * 0.8 });
         label(env, Pm.info === 'code' ? 'CODE' : 'READING', x1, top - fs * 0.9, { alpha: e0, size: fs * 0.8, align: 'right' });
       }
@@ -523,7 +526,7 @@ reg('tyIndexTable', {
       const y = top + (i + 0.5) * rowH;
       bb = U(bb, J.mainDraw(env, { text: ch, font: Pm.font, size: gs, x: xg, y, color: sc.fg, mi: i }));
       const a = E.outCubic(J.clamp((lt - 0.12 - i * 0.06) / 0.3)) * out;
-      if (a <= 0) return;
+      if (a <= 0 || !J.metadataVisible(env, 'no')) return;
       label(env, pad2(i + 1), x0, y, { alpha: a, size: fs, color: i === 0 ? accentOn(sc) : sc.sub });
       let info = null;
       if (Pm.info !== 'code' && (J.isHira(ch) || J.isKata(ch))) { const r = J.romaji(ch); if (r) info = r.toUpperCase(); }

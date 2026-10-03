@@ -132,7 +132,7 @@ const faceCache = new Map();
 J.faceOf = (key) => {
   const f = J.FONTS[key] || J.FONTS.gothic_bold;
   const L = J.LANG_FACES[J.lang];
-  if (!L || f.user) return f;                               // Japanese: the catalogue face itself (fontCSS runs per draw — no allocation)
+  if (!L || f.user || f.local) return f;                    // Explicit local faces bypass remote language remapping.
   const ck = J.lang + '|' + key; let r = faceCache.get(ck);
   if (r) return r;
   const m = L.map[key], fb = (SERIF_KINDS[f.kind] ? L.fbSerif : L.fbSans) + ',' + f.fb;

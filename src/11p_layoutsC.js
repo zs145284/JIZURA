@@ -237,7 +237,7 @@ function fastRow(env, text, font, size, x, y, sp, color, alpha, align = 'left') 
 }
 /* justified rows of real body copy (main pass only) */
 function bodyRows(env, src, font, fs, x, y, w, rows, lh, color, alpha, seed, reveal = 1) {
-  if (env.pass !== 'main' || alpha <= 0.01 || rows <= 0 || w < fs * 2) return;
+  if (!J.lyricContextVisible(env) || env.pass !== 'main' || alpha <= 0.01 || rows <= 0 || w < fs * 2) return;
   const chars = [...src]; if (!chars.length) return;
   const adv = J.metrics.adv(font, 'あ') || 1;
   const cpr = Math.max(2, Math.floor(w / (fs * adv * 1.04)));
@@ -255,7 +255,7 @@ function bodyRows(env, src, font, fs, x, y, w, rows, lh, color, alpha, seed, rev
 }
 /* vertical columns of real body copy, right → left (main pass only) */
 function vbody(env, src, font, fs, xR, y, h, cols, pitch, color, alpha, seed, reveal = 1) {
-  if (env.pass !== 'main' || alpha <= 0.01 || cols <= 0) return;
+  if (!J.lyricContextVisible(env) || env.pass !== 'main' || alpha <= 0.01 || cols <= 0) return;
   const chars = [...strip(src)].filter(c => !J.isLatin(c)); if (!chars.length) return;
   const per = Math.max(2, Math.floor(h / (fs * 1.02)));
   cols = Math.min(cols, Math.max(1, Math.floor(260 / per)));
@@ -1255,7 +1255,8 @@ reg('dictionary', {
     const src = flat(env.cut.lineText || t0) + (hasLatin(t0) ? ' — ' : '。');
     const ca = tin(env, 0, 0.5, E.outCubic) * out;
     const top = hy - m.h / 2 - size * 0.55 - ls * 1.6;
-    const defs = [deckCopy(env) || ('歌詞 第' + kanjiNum(lineN(env)) + '行。'), J.fmtTime(env.cut.start) + ' ─ ' + J.fmtTime(env.cut.end) + '　' + J.glyphCount(t0) + (hasLatin(t0) ? ' chars' : '字')];
+    const deck = deckCopy(env);
+    const defs = [deck || ('歌詞 第' + kanjiNum(lineN(env)) + '行。'), J.fmtTime(env.cut.start) + ' ─ ' + J.fmtTime(env.cut.end) + '　' + J.glyphCount(t0) + (hasLatin(t0) ? ' chars' : '字')];
     const dfs = J.clamp(u * 0.028, 14, 36);
     const defTop = hy + m.h / 2 + size * 0.45;
     const defBot = defTop + defs.length * dfs * 1.7 + dfs;
@@ -1277,8 +1278,8 @@ reg('dictionary', {
     }
     // guide header
     const ga = tin(env, 0.1, 0.4, E.outCubic) * out;
-    env.draw({ text: pad3(p.page % 1000), font: monoF(env), size: ls, align: 'left', x: mx, y: H * 0.055, color: sc.sub, alpha: ga, ghost: false });
-    env.draw({ text: (strip(t0)[0] || '') + '  ─  ' + (romajiOf(env) || flat(t0)).slice(0, 14), font: serifF(env), size: ls, align: 'right', x: mx + aw, y: H * 0.055, color: sc.sub, alpha: ga, ghost: false });
+    env.draw({ text: pad3(p.page % 1000), metadata: 'no', font: monoF(env), size: ls, align: 'left', x: mx, y: H * 0.055, color: sc.sub, alpha: ga, ghost: false });
+    env.draw({ textRole:'context', text: (strip(t0)[0] || '') + '  ─  ' + (romajiOf(env) || flat(t0)).slice(0, 14), font: serifF(env), size: ls, align: 'right', x: mx + aw, y: H * 0.055, color: sc.sub, alpha: ga, ghost: false });
     env.line([[mx, H * 0.055 + ls * 0.9], [mx + aw * ga, H * 0.055 + ls * 0.9]], sc.sub, lw, 0.6, false);
     // entry furniture: mark, brackets, part of speech
     const fa = tin(env, 0.05, 0.35, E.outCubic) * out;
@@ -1290,7 +1291,7 @@ reg('dictionary', {
     const lastW = meas(lastL, p.font, size, { track: 0.02 }).w;
     const ly = hy + (fb.text.split('\n').length - 1) / 2 * size * 1.1;
     const pa = tin(env, env.cut.inDur * 0.7, 0.35, E.outBack) * out;
-    if (pa > 0.01) {
+    if (pa > 0.01 && J.metadataVisible(env, 'grammar')) {
       const pw = ls * (p.pos.length * 1.25 + 0.9), px = Math.min(hx + lastW + size * 0.3, W - mx - pw);
       const pyy = ly + (hx + lastW + size * 0.3 > W - mx - pw ? size * 0.75 : 0);
       env.rrect(px, pyy - ls * 0.85, pw, ls * 1.7, ls * 0.3, null, J.clamp(pa), false, sc.fg, lw * 1.4);
@@ -1298,6 +1299,8 @@ reg('dictionary', {
     }
     // definitions
     defs.forEach((d, i) => {
+      const metadata = i === 0 ? (deck ? null : 'no') : 'time';
+      if (metadata && !J.metadataVisible(env, metadata)) return;
       const a = tin(env, env.cut.inDur * 0.8 + 0.1 + i * 0.12, 0.4, E.outCubic) * out;
       if (a <= 0.01) return;
       const y = defTop + dfs * 0.8 + i * dfs * 1.7;

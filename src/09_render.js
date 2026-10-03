@@ -8,6 +8,11 @@ const E = J.E;
 const mk = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, w | 0); c.height = Math.max(1, h | 0); return c; };
 
 J.cutAt = (plan, t) => {
+  plan = J.presentationPlan(plan);
+  if (plan.presentationApplied) {
+    const active = plan.cuts.filter(c => c.start <= t && t < c.end);
+    return active.filter(c => c.sourceRole === 'lyric').at(-1) || active.at(-1) || null;
+  }
   const cs = plan.cuts; let lo = 0, hi = cs.length - 1, ans = -1;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (cs[m].start <= t) { ans = m; lo = m + 1; } else hi = m - 1; }
   if (ans < 0) return null;
@@ -16,21 +21,28 @@ J.cutAt = (plan, t) => {
 };
 
 class Renderer {
-  constructor() {
+  constructor(seed = 0) {
     this.scratch = mk(2, 2); this.small = mk(2, 2); this.tiny = mk(2, 2);
-    this.grain = [];
-    for (let k = 0; k < 4; k++) {
-      const g = mk(256, 256), x = g.getContext('2d'), id = x.createImageData(256, 256);
-      for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
-      x.putImageData(id, 0, 0); this.grain.push(g);
-    }
+    this.setSeed(seed);
     const sl = mk(1, 4), sx = sl.getContext('2d'); sx.fillStyle = '#fff'; sx.fillRect(0, 0, 1, 4); sx.fillStyle = '#000'; sx.fillRect(0, 3, 1, 1);
     this.scan = sl;
-    this.paperCache = new Map();
     this.filterOK = (() => { try { const c = mk(4, 4).getContext('2d'); c.filter = 'blur(2px)'; return c.filter === 'blur(2px)'; } catch (e) { return false; } })();
   }
 
+  setSeed(seed) {
+    this.seed = seed;
+    const random = J.rng(J.h(seed, 901));
+    this.grain = [];
+    for (let k = 0; k < 4; k++) {
+      const g = mk(256, 256), x = g.getContext('2d'), id = x.createImageData(256, 256);
+      for (let i = 0; i < id.data.length; i += 4) { const v = random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+      x.putImageData(id, 0, 0); this.grain.push(g);
+    }
+    this.paperCache = new Map();
+  }
+
   paper(W, H) {
+    const random = J.rng(J.h(this.seed, W, H, 902));
     const key = W + 'x' + H;
     let p = this.paperCache.get(key);
     if (p) return p;
@@ -38,16 +50,16 @@ class Renderer {
     p = mk(w, h); const x = p.getContext('2d');
     x.fillStyle = '#fff'; x.fillRect(0, 0, w, h);
     const lo = mk(Math.ceil(w / 24), Math.ceil(h / 24)), lx = lo.getContext('2d'), ld = lx.createImageData(lo.width, lo.height);
-    for (let i = 0; i < ld.data.length; i += 4) { const v = 225 + Math.random() * 30; ld.data[i] = v; ld.data[i + 1] = v - 2; ld.data[i + 2] = v - 6; ld.data[i + 3] = 255; }
+    for (let i = 0; i < ld.data.length; i += 4) { const v = 225 + random() * 30; ld.data[i] = v; ld.data[i + 1] = v - 2; ld.data[i + 2] = v - 6; ld.data[i + 3] = 255; }
     lx.putImageData(ld, 0, 0);
     x.imageSmoothingEnabled = true; x.globalAlpha = 0.9; x.drawImage(lo, 0, 0, w, h); x.globalAlpha = 1;
     const id = x.getImageData(0, 0, w, h);
-    for (let i = 0; i < id.data.length; i += 4) { const n = (Math.random() - 0.5) * 22; id.data[i] += n; id.data[i + 1] += n; id.data[i + 2] += n; }
+    for (let i = 0; i < id.data.length; i += 4) { const n = (random() - 0.5) * 22; id.data[i] += n; id.data[i + 1] += n; id.data[i + 2] += n; }
     x.putImageData(id, 0, 0);
     x.strokeStyle = 'rgba(120,110,100,0.18)'; x.lineWidth = 0.7;
-    for (let i = 0; i < 900; i++) { const X = Math.random() * w, Y = Math.random() * h, a = Math.random() * J.TAU, L = 4 + Math.random() * 14; x.beginPath(); x.moveTo(X, Y); x.quadraticCurveTo(X + Math.cos(a + 0.5) * L / 2, Y + Math.sin(a + 0.5) * L / 2, X + Math.cos(a) * L, Y + Math.sin(a) * L); x.stroke(); }
+    for (let i = 0; i < 900; i++) { const X = random() * w, Y = random() * h, a = random() * J.TAU, L = 4 + random() * 14; x.beginPath(); x.moveTo(X, Y); x.quadraticCurveTo(X + Math.cos(a + 0.5) * L / 2, Y + Math.sin(a + 0.5) * L / 2, X + Math.cos(a) * L, Y + Math.sin(a) * L); x.stroke(); }
     x.fillStyle = 'rgba(60,50,40,0.25)';
-    for (let i = 0; i < 1400; i++) { x.fillRect(Math.random() * w, Math.random() * h, Math.random() * 1.6, Math.random() * 1.6); }
+    for (let i = 0; i < 1400; i++) { x.fillRect(random() * w, random() * h, random() * 1.6, random() * 1.6); }
     this.paperCache.set(key, p);
     return p;
   }
@@ -56,18 +68,22 @@ class Renderer {
 
   /* main entry: draw frame at time t into ctx (canvas px = design * scale) */
   frame(ctx, plan, t, opt = {}) {
+    plan = J.presentationPlan(plan);
+    if (this.seed !== plan.seed) this.setSeed(plan.seed);
     const W = plan.W, H = plan.H, scale = opt.scale || 1;
     const cw = ctx.canvas.width, ch = ctx.canvas.height;
     const fx = plan.fx, st = plan.style, fps = plan.fps;
     // motion is quantised to 'koma' drawings per second (24fps timebase); random flicker runs on a <=24Hz clock
     const stepDur = J.stepDur(fx, fps);
     const clock = J.komaOf(fx) > 0 ? stepDur : 1 / 24;
-    const tq = Math.floor(t / stepDur + 1e-6) * stepDur;
-    const mainCut = J.cutAt(plan, tq);
+    const mainCut = J.cutAt(plan, plan.sourceTimeline ? t : Math.floor(t / stepDur + 1e-6) * stepDur);
+    // Quantise poses, not source lyric boundaries. A new cut must be active on its exact timestamp.
+    const tq = Math.max(plan.sourceTimeline && mainCut ? mainCut.start : 0, Math.floor(t / stepDur + 1e-6) * stepDur);
     const sc = st.schemes[mainCut ? mainCut.scheme % st.schemes.length : 0] || st.schemes[0];
     const allowFilter = this.filterOK && !opt.fast;
     if (J.setLang) J.setLang(plan.lang || 'ja');           // faces follow the plan's lyric language
     if (J.setTypeset) J.setTypeset(plan.typeset);          // 文字整列
+    if (J.setGlyphAspect) J.setGlyphAspect(plan.glyphAspect);
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
@@ -156,12 +172,16 @@ class Renderer {
       // 中央を空ける: the cut in its band, and its companion (echo / whole line / decorations) in the other band
       for (const cut of plan.centerFree && cut0.companion ? [cut0, cut0.companion] : [cut0]) {
       const csc = st.schemes[cut.scheme % st.schemes.length] || st.schemes[0];
-      const lt = tp - cut.start;
+      // Source-timed primary layouts gate their words with lt as well as animate them.
+      // Stepping this content clock hides due words until the next pose step.
+      // Backgrounds, post effects, ghosts and random step indices retain their stepped clock.
+      const contentTime = P.pass === 'main' && plan.sourceTimeline && cut.wordTiming ? t : tp;
+      const lt = contentTime - cut.start;
       const X = LX || ctx;
       const Z = plan.centerFree && cut.zone ? cut.zone : null;
       const env = this.makeEnv(X, plan, cut, csc, {
         pass: P.pass, passColor: P.pass === 'A' ? csc.ghostA : P.pass === 'B' ? csc.ghostB : null,
-        t: tp, lt, ltb: lt + P.lag, step: Math.floor(tp / clock + 1e-6), scale, allowFilter, energy, beat: beatInfo, layer, zone: Z,
+        t: contentTime, audioT: t, lt, ltb: lt + P.lag, step: Math.floor(tp / clock + 1e-6), scale, allowFilter, energy, beat: beatInfo, layer, zone: Z,
         hideText: morphOn, glyphLog: P.pass === 'main' ? opt.glyphLog || null : null,
       });
       X.save();
@@ -309,7 +329,7 @@ class Renderer {
     } else { env.pIn = 1; env.pOut = 0; }
     const ghost = env.pass !== 'main';
     const colOf = (c, g) => (ghost ? (g === false ? null : env.passColor) : c);
-    env.draw = it => J.drawItem(env, it);
+    env.draw = it => J.drawItem(env, !it.textRole && J.sourceTextContext(env,it.text) ? {...it,textRole:'context'} : it);
     env.rect = (x, y, w, h, c, a = 1, g = true) => { const col = colOf(c, g); if (!col || a <= 0) return; ctx.globalAlpha = a; ctx.fillStyle = col; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1; };
     env.line = (pts, c, lw = 1, a = 1, g = true) => {
       const col = colOf(c, g); if (!col || a <= 0 || pts.length < 2) return;
@@ -373,7 +393,8 @@ class Renderer {
     if (env.layer !== 'front') for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'back') try { D.draw(env, null, d); } catch (e) { console.warn(e); } }
     if (env.layer === 'back') return null;                // 後景だけ: the lyrics and the front decorations go to the other layer
     let bb = null;
-    try { bb = L.render(env); } catch (e) { console.warn('layout', cut.layout, e); }
+    env.lyricLayout = true;
+    try { bb = L.render(env); } catch (e) { console.warn('layout', cut.layout, e); } finally { env.lyricLayout = false; }
     for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'front') try { D.draw(env, bb, d); } catch (e) { console.warn(e); } }
     return bb;
   }

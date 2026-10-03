@@ -17,6 +17,10 @@ const addPre = (it, f) => { const p = it.pre; it.pre = p ? (e, i) => { p(e, i); 
 const clockCache = new WeakMap();
 function wordTimes(env, nMax = 6) {
   const c = env.cut;
+  if (c.wordTiming && c.lyricTokens?.length) {
+    const ranges = J.lyricUnitRanges(c, c.words || []).filter(r => r.start != null).slice(0, nMax);
+    if (ranges.length) { const times = ranges.map(r => Math.max(0, r.start - c.start)); times.audioLocal = (env.audioT ?? env.t) - c.start; return times; }
+  }
   let v = clockCache.get(c);
   if (v && v.nMax === nMax) return v.t;
   let n = Math.max(1, Math.min(nMax, (c.words || []).length || 1));
@@ -39,7 +43,7 @@ function wordTimes(env, nMax = 6) {
   clockCache.set(c, { nMax, t });
   return t;
 }
-const curIdx = (ts, t) => { let k = -1; for (let i = 0; i < ts.length; i++) if (t >= ts[i]) k = i; return k; };
+const curIdx = (ts, t) => { t = ts.audioLocal ?? t; let k = -1; for (let i = 0; i < ts.length; i++) if (t >= ts[i]) k = i; return k; };
 
 /* ================================================================ CAMERA */
 reg('cam', 'knReadPan', {

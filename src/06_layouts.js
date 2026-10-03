@@ -9,6 +9,9 @@ const E = J.E;
 
 /* ---------- main-item pipeline: enter / hold / exit + draw ---------- */
 J.mainDraw = (env, it) => {
+  it.textRole ||= 'primary';
+  if (J.bindLyricItem) J.bindLyricItem(env, it);
+  it = J.prepareTextItem(it);
   const cut = env.cut;
   it.seed = it.seed != null ? it.seed : J.h(cut.seed, (it.mi | 0) + 1, 7);
   it.charFns = []; it.pieceFns = [];
@@ -44,7 +47,7 @@ J.drawFx = (env, it) => {
     if (it.streak && it.streak.a > 0.01) {
       for (let k = it.streak.n; k >= 1; k--) {
         const c = Object.assign({}, it, { x: it.x + it.streak.dx * k, y: it.y + (it.streak.dy || 0) * k, alpha: (it.alpha ?? 1) * it.streak.a * (1 - k / (it.streak.n + 1)), pieceFn: null, streak: null, echo: null, pre: null, post: null, shadow: null, extrude: null });
-        J.drawItem(env, c);
+        c.lyricCopy = true; J.drawItem(env, c);
       }
     }
     if (it.echo && it.echo.n > 0) {            // stepped copies behind the item (outline or tinted)
@@ -54,7 +57,7 @@ J.drawFx = (env, it) => {
           alpha: (it.alpha ?? 1) * (E0.a ?? 0.5) * Math.pow(E0.decay ?? 0.7, k - 1), pieceFn: null, streak: null, echo: null, pre: null, post: null, shadow: null, extrude: null, pattern: null, gradient: null,
           color: E0.color || it.color, _lay: null, _m: null });
         if (E0.outline) Object.assign(c, { fill: false, stroke: Math.max(1, it.size * 0.012), strokeColor: E0.color || it.color });
-        J.drawItem(env, c);
+        c.lyricCopy = true; J.drawItem(env, c);
       }
     }
     const r = J.drawItem(env, it); if (r) bb = r;

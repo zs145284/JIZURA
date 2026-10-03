@@ -80,6 +80,15 @@ function unitsOf(cut, maxU = 6, minU = 1) {
 const clockCache = new WeakMap();
 function onsets(env, n, o = {}) {
   const c = env.cut;
+  if (c.wordTiming && c.lyricTokens?.length) {
+    const ranges = J.lyricUnitRanges(c, unitsOf(c, n, n));
+    if (ranges.length === n && ranges.every(r => r.start != null)) {
+      env.lyricUnits = ranges;
+      const source = ranges.map(r => Math.max(0, r.start - c.start));
+      source.audioLocal = (env.audioT ?? env.t) - c.start;
+      return source;
+    }
+  }
   let m = clockCache.get(c);
   if (!m) { m = new Map(); clockCache.set(c, m); }
   const frac = o.frac || 0.5, gap = o.gap || 0.38, t0 = o.t0 || 0;
@@ -105,7 +114,7 @@ function onsets(env, n, o = {}) {
   return v;
 }
 // index of the latest unit whose onset has passed (-1 before the first)
-const curIdx = (ts, t) => { let k = -1; for (let i = 0; i < ts.length; i++) if (t >= ts[i]) k = i; return k; };
+const curIdx = (ts, t) => { t = ts.audioLocal ?? t; let k = -1; for (let i = 0; i < ts.length; i++) if (t >= ts[i]) k = i; return k; };
 
 /* ---- flow units into balanced lines that fit a box; positions are unit centres relative to the box centre ---- */
 function partitions(n, L) {
@@ -198,7 +207,7 @@ reg('knSlamStack', {
       if (!fresh && k > 1 && land > 0) y += A.sizes[k - 1] * 0.07 * sprg(land, 9, 26) * (land < 0.6 ? 1 : 0);
       let px = cx + x, py = cy + y;
       if (Pm.tilt) { const r = rotV(x, y, Pm.tilt); px = cx + r[0]; py = cy + r[1]; rot += Pm.tilt; }
-      const it = { text: units[i], font: Pm.font, size, x: px, y: py, align: al === 'left' ? 'left' : al === 'right' ? 'right' : 'center', track: 0.02,
+      const it = { text: units[i], lyricUnit: i, font: Pm.font, size, x: px, y: py, align: al === 'left' ? 'left' : al === 'right' ? 'right' : 'center', track: 0.02,
         rot, alpha, color: n > 1 && i === Pm.acc % n ? accOn(sc) : sc.fg, mi: miAt(env, ts[i]) };
       const r = J.mainDraw(env, it);
       bb = UB(bb, r);
@@ -259,7 +268,7 @@ reg('knQuarterTurn', {
       const g = ch[i];
       const [dx, dy] = rotV(g.cx - cam.x, g.cy - cam.y, cam.r);
       const q = clamp((lt - ts[i]) / 0.22), pop = i === 0 ? 1 : lerp(0.3, 1, E.outBack(q, 2.2));
-      const it = { text: units[i], font: Pm.font, size: cam.z * pop, x: W / 2 + dx * cam.z, y: H / 2 + dy * cam.z, rot: g.a + cam.r, track: 0.03,
+      const it = { text: units[i], lyricUnit: i, font: Pm.font, size: cam.z * pop, x: W / 2 + dx * cam.z, y: H / 2 + dy * cam.z, rot: g.a + cam.r, track: 0.03,
         color: i === Pm.acc % n ? accOn(sc) : sc.fg, mi: miAt(env, ts[i]), alpha: i === 0 ? 1 : clamp(q * 4) };
       bb = UB(bb, J.mainDraw(env, it));
       // joint marks: a small accent square where the line turns
@@ -305,7 +314,7 @@ reg('knSwapCenter', {
         else if (Pm.mode === 'punch') { size = s0 * (old ? lerp(1, 0.45, q) : lerp(1.9, 1, q)); alpha = old ? 1 - q : clamp(q * 3); }
         else { x += (old ? -q : 1 - E.outBack(q, 1.3)) * W * 0.7; alpha = old ? 1 - q * q : 1; }
         if (sy < 0.02 || alpha < 0.01) return;
-        const it = { text: units[i], font: Pm.font, size, x, y, sy, track: 0.02, alpha, color: Pm.acc && i % 2 ? accC : sc.fg, mi: miAt(env, ts[i]), noHold: old };
+        const it = { text: units[i], lyricUnit: i, font: Pm.font, size, x, y, sy, track: 0.02, alpha, color: Pm.acc && i % 2 ? accC : sc.fg, mi: miAt(env, ts[i]), noHold: old };
         bb = UB(bb, J.mainDraw(env, it));
       };
       if (k > 0 && e < 1) draw(k - 1, e, true);
@@ -323,7 +332,7 @@ reg('knSwapCenter', {
     for (let i = 0; i < n; i++) {
       const last = i === n - 1, q = E.outExpo(clamp((lt - tR - (last ? 0 : 0.05 + i * 0.035)) / 0.42));
       const p = F.pos[i], size = last ? lerp(big[i], F.size, q) : F.size * lerp(0.3, 1, q);
-      const it = { text: units[i], font: last ? (q > 0.5 ? Pm.fontL : Pm.font) : Pm.fontL, size, x: lerp(cx, cx + p.x, q), y: lerp(cy, cy + p.y, q), track: last ? lerp(0.02, 0.03, q) : 0.03,
+      const it = { text: units[i], lyricUnit: i, font: last ? (q > 0.5 ? Pm.fontL : Pm.font) : Pm.fontL, size, x: lerp(cx, cx + p.x, q), y: lerp(cy, cy + p.y, q), track: last ? lerp(0.02, 0.03, q) : 0.03,
         alpha: last ? 1 : clamp(q * 2.5), color: Pm.acc && i % 2 ? accC : sc.fg, mi: last ? miAt(env, ts[i]) : miAt(env, tR) };
       bb = UB(bb, J.mainDraw(env, it));
     }
@@ -347,7 +356,7 @@ reg('knZoomDive', {
     const size = i => Math.min(J.fitSize(units[i], Pm.font, W * 0.78, H * 0.4, { track: 0.02 }), H * 0.34, W * 0.6);
     // focus glyph: the first kanji (else the middle glyph), as an offset from the word centre in em
     const focus = i => {
-      const lay = J.layoutText({ text: units[i], font: Pm.font, size: 1, track: 0.02 });
+      const lay = J.layoutText({ text: units[i], lyricUnit: i, font: Pm.font, size: 1, track: 0.02 });
       const gs = lay.filter(g => g.ch.trim());
       const g = gs.find(q => J.isKanji(q.ch)) || gs[Math.floor(gs.length / 2)] || { x: 0, y: 0 };
       return [g.x, g.y];
@@ -362,13 +371,13 @@ reg('knZoomDive', {
         const i = k - 1, s0 = size(i), [fx, fy] = focus(i);
         const px = lerp(cx + fx * s0, cx, E.inOutCubic(e)), py = lerp(cy + fy * s0, cy, E.inOutCubic(e));
         const s = Math.exp(Math.pow(e, 1.6) * Math.log(36));
-        const it = { text: units[i], font: Pm.font, size: s0 * s, x: px - fx * s0 * s, y: py - fy * s0 * s, track: 0.02, alpha: 1 - J.smooth(0.55, 1, e), color: Pm.acc && i % 2 ? accC : sc.fg, mi: miAt(env, ts[i]), noHold: true };
+        const it = { text: units[i], lyricUnit: i, font: Pm.font, size: s0 * s, x: px - fx * s0 * s, y: py - fy * s0 * s, track: 0.02, alpha: 1 - J.smooth(0.55, 1, e), color: Pm.acc && i % 2 ? accC : sc.fg, mi: miAt(env, ts[i]), noHold: true };
         J.mainDraw(env, it);
       }
     }
     const s1 = size(k), q = k > 0 ? E.outExpo(clamp((lt - ts[k] - T * 0.35) / 0.45)) : 1;
     if (q > 0.001) {
-      const it = { text: units[k], font: Pm.font, size: s1 * lerp(0.03, 1, q), x: cx, y: cy, track: 0.02, alpha: clamp(q * 3), color: Pm.acc && k % 2 ? accC : sc.fg, mi: miAt(env, ts[k]) };
+      const it = { text: units[k], lyricUnit: k, font: Pm.font, size: s1 * lerp(0.03, 1, q), x: cx, y: cy, track: 0.02, alpha: clamp(q * 3), color: Pm.acc && k % 2 ? accC : sc.fg, mi: miAt(env, ts[k]) };
       bb = J.mainDraw(env, it);
     }
     // the whole line as a caption once the last word has settled
@@ -512,7 +521,7 @@ reg('knSeesaw', {
       const d = lt - tl[i];
       if (d < 0) { const k = -d / fall; y -= H * 0.55 * k * k; rot = ang * (1 - k); }
       else { const q = Math.exp(-d * 11) * 0.22; sy = 1 - q; sx = 1 + q * 0.6; x += sr * size * q * 0.5; y += cr * size * q * 0.5; }
-      const it = { text: units[i], font: Pm.font, size, x, y, rot, sx, sy, track: 0.03, color: Pm.acc && mass[i] === Math.max(...mass) ? accC : sc.fg, mi: miAt(env, t0) };
+      const it = { text: units[i], lyricUnit: i, font: Pm.font, size, x, y, rot, sx, sy, track: 0.03, color: Pm.acc && mass[i] === Math.max(...mass) ? accC : sc.fg, mi: miAt(env, t0) };
       bb = UB(bb, J.mainDraw(env, it));
     }
     return bb;
@@ -597,13 +606,15 @@ reg('knRhythmCuts', {
     const ts = onsets(env, n, { frac: 0.5, gap: 0.46 });
     let tF = Math.min(ts[n - 1] + 0.55, c.dur - c.outDur - 0.45);
     tF = Math.max(tF, ts[n - 1] + 0.28);
+    // Keep the final sourced shot through this cut, including the silent tail.
+    if (c.wordTiming && env.lyricUnits?.[n - 1]?.end != null) tF = c.dur;
     const k = curIdx(ts, lt);
     if (k < 0) return null;
     const out = tout(env), accC = accOn(sc);
     if (lt < tF) {
       const t = units[k], shot = (Pm.shots || SHOTS)[k % 6], dt = lt - ts[k];
       const punch = 1 + 0.1 * Math.exp(-dt * 14);
-      const it = { text: t, font: Pm.font, x: W / 2, y: H / 2, color: sc.fg, track: 0.02, mi: miAt(env, ts[k]) };
+      const it = { text: t, lyricUnit: k, font: Pm.font, x: W / 2, y: H / 2, color: sc.fg, track: 0.02, mi: miAt(env, ts[k]) };
       const vtxt = hasLatin(t) ? t : strip(t);
       if (shot === 'huge') it.size = Math.min(J.fitSize(t, Pm.font, W * 0.82, H * 0.6, { track: 0.02 }), H * 0.54);
       else if (shot === 'vert' && !hasLatin(t)) {
@@ -635,7 +646,7 @@ reg('knRhythmCuts', {
     let bb = null;
     units.forEach((t, i) => {
       const p = F.pos[i];
-      bb = UB(bb, J.mainDraw(env, { text: t, font: Pm.fontB, size: F.size * punch, x: ox + p.x * punch, y: H / 2 + p.y * punch, track: 0.04, color: sc.fg, mi: miAt(env, tF + i * 0.03) }));
+      bb = UB(bb, J.mainDraw(env, { text: t, lyricUnit: i, font: Pm.fontB, size: F.size * punch, x: ox + p.x * punch, y: H / 2 + p.y * punch, track: 0.04, color: sc.fg, mi: miAt(env, tF + i * 0.03) }));
     });
     if (bb) {
       const e = E.outExpo(clamp(dt / 0.35)) * out, lw = Math.max(2, u * 0.004);
@@ -878,7 +889,7 @@ reg('knTumble', {
         ctx.restore();
       }
       const plate = Pm.box === 'plate';
-      const it = { text: units[i], font: Pm.font, size, x: cx, y: cy + sq * h * 0.5, rot, sx: 1 + sq * 0.5, sy: 1 - sq, track: 0.02,
+      const it = { text: units[i], lyricUnit: i, font: Pm.font, size, x: cx, y: cy + sq * h * 0.5, rot, sx: 1 + sq * 0.5, sy: 1 - sq, track: 0.02,
         color: plate ? onCol(sc, i === Pm.acc % n ? accC : sc.ink) : (i === Pm.acc % n ? accC : sc.fg), plain: plate, mi: miAt(env, ts[i]), noHold: !done };
       bb = UB(bb, J.mainDraw(env, it));
     }
@@ -956,7 +967,7 @@ reg('knPadGrid', {
       const pf = 0.1 + 0.9 * fl;
       env.rrect(x + lw, y + lw, cw - lw * 2, chh - lw * 2, Pm.round ? chh * 0.12 : 0, flashC, pf * out, false);
       const tc = pf > 0.5 ? onCol(sc, flashC) : sc.fg;
-      const it = { text: units[i], font: Pm.font, size: Math.min(sizes[i], sz) * (1 + 0.12 * Math.exp(-(lt - ts[i]) * 12)), x: x + cw / 2, y: y + chh / 2, track: 0.02, color: tc, mi: miAt(env, ts[i]) };
+      const it = { text: units[i], lyricUnit: i, font: Pm.font, size: Math.min(sizes[i], sz) * (1 + 0.12 * Math.exp(-(lt - ts[i]) * 12)), x: x + cw / 2, y: y + chh / 2, track: 0.02, color: tc, mi: miAt(env, ts[i]) };
       bb = UB(bb, J.mainDraw(env, it));
     }
     return bb;
