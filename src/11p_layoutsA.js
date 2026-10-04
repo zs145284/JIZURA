@@ -1099,7 +1099,7 @@ reg('mirror', {
         const dx = p.ripple ? Math.sin(env.ltb * 2.4 + k * 0.9) * size * 0.035 * (k + 1) / K : 0;
         ctx.save(); ctx.beginPath(); ctx.rect(-W, y0, W * 3, y1 - y0 + 0.6); ctx.clip();
         ctx.translate(dx, hz); ctx.scale(1, -p.squash); ctx.translate(0, -hz);
-        J.mainDraw(env, Object.assign({}, base, { alpha: a, ghost: false, mi: 0 }));
+        J.mainDraw(env, Object.assign({}, base, { alpha: a, ghost: false, mi: 0, lyricCopy: true }));
         ctx.restore();
       }
     }

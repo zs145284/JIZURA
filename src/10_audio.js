@@ -62,12 +62,17 @@ J.analyzeAudio = async (file) => {
   const p95 = sorted[Math.floor(sorted.length * 0.95)] || 1;
   const energyN = new Float32Array(n);
   for (let f = 0; f < n; f++) energyN[f] = Math.min(1, energy[f] / p95);
+  // Preserve measured attacks for optional instrumental motion. These are audio
+  // transients at source time, not a claim that the estimated BPM grid is exact.
+  const positive = Array.from(onset).filter(v => v > 0).sort((a, b) => a - b);
+  const onset95 = positive[Math.floor(positive.length * 0.95)] || 1;
+  const onsetN = Float32Array.from(onset, v => Math.min(1, v / onset95));
   // waveform peaks for the timeline
   const bins = 1600, peaks = new Float32Array(bins), per = Math.max(1, Math.floor(len / bins));
   for (let b = 0; b < bins; b++) { let m = 0; for (let i = b * per, e = Math.min(len, (b + 1) * per); i < e; i += 4) { const v = Math.abs(mono[i]); if (v > m) m = v; } peaks[b] = m; }
   return {
     name: file.name, duration: audioBuffer.duration, sampleRate: sr, buffer: audioBuffer,
-    bpm: Math.round(60 / period * 10) / 10, beats, energy: energyN, energyRate: rate, peaks,
+    bpm: Math.round(60 / period * 10) / 10, beats, energy: energyN, energyRate: rate, onset: onsetN, onsetRate: rate, peaks,
   };
 };
 

@@ -11,13 +11,46 @@ J.cutAt = (plan, t) => {
   plan = J.presentationPlan(plan);
   if (plan.presentationApplied) {
     const active = plan.cuts.filter(c => c.start <= t && t < c.end);
-    return active.filter(c => c.sourceRole === 'lyric').at(-1) || active.at(-1) || null;
+    return active.filter(c => c.sourceRole === 'lyric').at(-1) || active.filter(c => c.creditPresentation).at(-1) || active.at(-1) || null;
   }
   const cs = plan.cuts; let lo = 0, hi = cs.length - 1, ans = -1;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (cs[m].start <= t) { ans = m; lo = m + 1; } else hi = m - 1; }
   if (ans < 0) return null;
   const c = cs[ans];
   return t < c.end ? c : null;
+};
+
+// Background state lasts until the next cut, independently of lyric visibility.
+// Resolve from the timeline, never from the renderer's previous output frame:
+// seeking, offset views and overlapping instrumental cuts must give the same result.
+J.backgroundCutAt = (plan, t) => {
+  plan = J.presentationPlan(plan);
+  const active = J.cutAt(plan, t);
+  if (active) return active;
+  let last = null;
+  for (const cut of plan.cuts) if (cut.start <= t && (!last || cut.start >= last.start)) last = cut;
+  return last;
+};
+
+// Source-time, frame-pure attack release: no synthetic beat on missing/silent audio.
+// Native poses retain their koma clock; music can respond between pose changes.
+J.musicAt = (plan, t) => {
+  const response = plan.musicResponse;
+  if (!response || response.mode !== 'instrumental' || response.strength <= 0) return null;
+  const strength = response.strength ?? 0.85;
+  const energy = plan.energy, er = plan.energyRate;
+  const ei = Math.floor(t * er), ef = t * er - ei;
+  const level = energy && er > 0 ? J.clamp((energy[ei] || 0) * (1 - ef) + (energy[ei + 1] ?? energy[ei] ?? 0) * ef) : 0;
+  const onset = plan.musicOnset, rate = plan.musicOnsetRate;
+  let pulse = 0;
+  if (onset && rate > 0 && energy && er > 0) {
+    for (let i = Math.floor(t * rate), stop = Math.max(0, Math.ceil((t - 0.36) * rate)); i >= stop; i--) {
+      // Gate the measured attack, not its release: a short note must decay
+      // naturally after the sound becomes quiet.
+      if ((energy[Math.floor(i / rate * er)] || 0) > 0.02) pulse = Math.max(pulse, (onset[i] || 0) * Math.exp(-(t - i / rate) / 0.11));
+    }
+  }
+  return { level, pulse: J.clamp(pulse), strength };
 };
 
 class Renderer {
@@ -76,10 +109,11 @@ class Renderer {
     // motion is quantised to 'koma' drawings per second (24fps timebase); random flicker runs on a <=24Hz clock
     const stepDur = J.stepDur(fx, fps);
     const clock = J.komaOf(fx) > 0 ? stepDur : 1 / 24;
-    const mainCut = J.cutAt(plan, plan.sourceTimeline ? t : Math.floor(t / stepDur + 1e-6) * stepDur);
+    const cutTime = plan.sourceTimeline ? t : Math.floor(t / stepDur + 1e-6) * stepDur;
+    const mainCut = J.cutAt(plan, cutTime), backgroundCut = mainCut || J.backgroundCutAt(plan, cutTime);
     // Quantise poses, not source lyric boundaries. A new cut must be active on its exact timestamp.
     const tq = Math.max(plan.sourceTimeline && mainCut ? mainCut.start : 0, Math.floor(t / stepDur + 1e-6) * stepDur);
-    const sc = st.schemes[mainCut ? mainCut.scheme % st.schemes.length : 0] || st.schemes[0];
+    const sc = st.schemes[backgroundCut ? backgroundCut.scheme % st.schemes.length : 0] || st.schemes[0];
     const allowFilter = this.filterOK && !opt.fast;
     if (J.setLang) J.setLang(plan.lang || 'ja');           // faces follow the plan's lyric language
     if (J.setTypeset) J.setTypeset(plan.typeset);          // 文字整列
@@ -124,14 +158,15 @@ class Renderer {
     const chroma = (fx.chroma ?? 0.7) * (st.ghost ?? 1) * (1 + spike + beatPulse);
     const step = Math.floor(tq / clock + 1e-6);
     const beatInfo = plan.beats && plan.beats.length ? beatAt(plan.beats, tq) : null;
+    const music = mainCut && (mainCut.instrumental || plan.lines[mainCut.line]?.interlude) ? J.musicAt(plan, t) : null;
     const energy = plan.energy ? plan.energy[Math.min(plan.energy.length - 1, Math.max(0, Math.floor(t * plan.energyRate)))] : null;
     // ---------- background graphic (per line) ----------
     // 透過PNG 前景／後景 (opt.layer): 'back' = background graphic + the decorations behind the lyrics, 'front' = the rest
     const layer = opt.transparent ? opt.layer || null : null;
-    if ((!opt.transparent || layer === 'back') && !key && mainCut && mainCut.bg && mainCut.bg !== 'none' && J.BG[mainCut.bg]) {
-      const env = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: tq - mainCut.start, ltb: tq - mainCut.start, step, scale, allowFilter, energy, beat: beatInfo, bgOnly: true });
+    if ((!opt.transparent || layer === 'back') && !key && backgroundCut && backgroundCut.bg && backgroundCut.bg !== 'none' && J.BG[backgroundCut.bg]) {
+      const env = this.makeEnv(ctx, plan, backgroundCut, sc, { pass: 'main', t: tq, lt: tq - backgroundCut.start, ltb: tq - backgroundCut.start, step, scale, allowFilter, energy, music, beat: beatInfo, bgOnly: true });
       ctx.save();
-      try { J.BG[mainCut.bg].draw(env, mainCut.bgP || {}); } catch (e) { console.warn('bg', mainCut.bg, e); }
+      try { J.BG[backgroundCut.bg].draw(env, backgroundCut.bgP || {}); } catch (e) { console.warn('bg', backgroundCut.bg, e); }
       ctx.restore();
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
     }
@@ -153,7 +188,7 @@ class Renderer {
     let layerBlur = 0, LX = null;
     if (allowFilter && mainCut && J.CAMERA[mainCut.cam] && mainCut.cam !== 'push') {
       try {
-        const e0 = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: tq - mainCut.start, ltb: tq - mainCut.start, step, scale, allowFilter, energy, beat: beatInfo });
+        const e0 = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: tq - mainCut.start, ltb: tq - mainCut.start, step, scale, allowFilter, energy, music, beat: beatInfo });
         const c0 = J.CAMERA[mainCut.cam].get(e0, mainCut.camP || {});
         if (c0 && c0.blur > 0.4) layerBlur = c0.blur;
       } catch (e) {}
@@ -181,7 +216,7 @@ class Renderer {
       const Z = plan.centerFree && cut.zone ? cut.zone : null;
       const env = this.makeEnv(X, plan, cut, csc, {
         pass: P.pass, passColor: P.pass === 'A' ? csc.ghostA : P.pass === 'B' ? csc.ghostB : null,
-        t: contentTime, audioT: t, lt, ltb: lt + P.lag, step: Math.floor(tp / clock + 1e-6), scale, allowFilter, energy, beat: beatInfo, layer, zone: Z,
+        t: contentTime, audioT: t, lt, ltb: lt + P.lag, step: Math.floor(tp / clock + 1e-6), scale, allowFilter, energy, music, beat: beatInfo, layer, zone: Z,
         hideText: morphOn, glyphLog: P.pass === 'main' ? opt.glyphLog || null : null,
       });
       X.save();
@@ -230,7 +265,7 @@ class Renderer {
     }
     // ---------- HUD ----------
     if (plan.hud && !opt.noHud && layer !== 'back') {
-      const env = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: 0, ltb: 0, step, scale, allowFilter, energy, beat: beatInfo });
+      const env = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: 0, ltb: 0, step, scale, allowFilter, energy, music, beat: beatInfo });
       J.drawHUD(env, plan);
     }
     ctx.restore();
@@ -321,12 +356,21 @@ class Renderer {
     ctx.restore();
   }
   makeEnv(ctx, plan, cut, sc, o) {
+    if (cut?.motionStart != null) {
+      const displayStart = cut.start, onset = cut.lyricEntry.onset;
+      const local = time => time < onset ?
+        Math.max(0,time-displayStart)*(onset-cut.motionStart)/Math.max(1e-9,onset-displayStart) : time-cut.motionStart;
+      const time = cut.start + o.lt, lt = local(time);
+      o = {...o,audioT:o.audioT ?? o.t,t:cut.motionStart+lt,lt,ltb:local(time+(o.ltb-o.lt))};
+      cut = {...cut,start:cut.motionStart,dur:cut.end-cut.motionStart};
+    }
     const W = o.zone ? o.zone.w : plan.W, H = o.zone ? o.zone.h : plan.H;   // 中央を空ける: a cut lives in its side band
     const env = Object.assign({ ctx, W, H, sc, st: plan.style, fx: plan.fx, fps: plan.fps, cut, plan }, o);
     if (cut) {
       env.pIn = J.clamp(o.lt / Math.max(0.01, cut.inDur));
       env.pOut = cut.outDur > 0 ? J.clamp((o.lt - (cut.dur - cut.outDur)) / cut.outDur) : 0;
     } else { env.pIn = 1; env.pOut = 0; }
+    env.music = cut && (cut.instrumental || plan.lines[cut.line]?.interlude) ? o.music : null;
     const ghost = env.pass !== 'main';
     const colOf = (c, g) => (ghost ? (g === false ? null : env.passColor) : c);
     env.draw = it => J.drawItem(env, !it.textRole && J.sourceTextContext(env,it.text) ? {...it,textRole:'context'} : it);
@@ -558,4 +602,60 @@ function prevBeat(beats, t) {
   return ans;
 }
 J.Renderer = Renderer;
+// Probe the selected native layout/entrance with its actual font and camera.
+// No song constants, new layout, RNG draw, lyric retiming, or resting-frame
+// replacement. The available preparation window ends at the sung first token.
+J.prepareLyricEntry = (plan, cut, earliest) => {
+  const ids = cut.lyricIndices || [];
+  const token = (cut.lyricTokens || []).filter(w => w.end > w.start && w.indices.some(i => ids.includes(i))).sort((a,b) => a.start-b.start)[0];
+  if (!token) return null;
+  const index = token.indices.find(i => ids.includes(i)), local = ids.indexOf(index);
+  const char = [...cut.text][local], onset = token.start;
+  const available = Math.max(0, cut.start - earliest), fps = plan.fps || 24;
+  const cv = mk(320,180), ctx = cv.getContext('2d',{willReadFrequently:true}), renderer = new Renderer(plan.seed);
+  const probePlan = {...plan,presentationApplied:true,cuts:[],fx:{...plan.fx,texture:0}};
+  const transition = Math.max(cut.trans ? cut.transDur || .35 : 0, cut.morph?.dur || 0);
+  const ready = (lead,t) => {
+    const candidate = {...cut,start:cut.start-lead,dur:cut.end-cut.start+lead,lyricEntryLead:lead,lyricEntryIndex:index};
+    probePlan.cuts = [candidate]; const log = [];
+    renderer.frame(ctx,probePlan,t,{scale:cv.width/plan.W,transparent:true,layer:'front',noPost:true,noHud:true,noGhost:true,noTrans:true,glyphLog:log});
+    const identified = log.some(g => g.sourceIndex === index && g.ch === char && g.a >= .5 &&
+      g.m[4] > 0 && g.m[4] < cv.width && g.m[5] > 0 && g.m[5] < cv.height &&
+      g.px * Math.min(Math.hypot(g.m[0],g.m[1]),Math.hypot(g.m[2],g.m[3])) >= 1);
+    if (!identified) return false;
+    // Glyph logs precede masks/pieces and skip blur layers. Confirm that this
+    // first glyph contributes pixels through the ordinary native draw path.
+    const opt = {scale:cv.width/plan.W,noPost:true,noHud:true,noGhost:true,noTrans:true};
+    renderer.frame(ctx,probePlan,t,opt);
+    const normal = new Uint8ClampedArray(ctx.getImageData(0,0,cv.width,cv.height).data), draw = J.drawItem;
+    J.drawItem = (env,it) => {
+      if (env.pass === 'main' && !it.lyricCopy && it.lyricIndices?.includes(index)) {
+        const fn = it.charFn;
+        it = {...it,charFn:(i,...args)=>({...fn?.(i,...args),...(it.lyricIndices[i]===index?{hide:true}:{})})};
+      }
+      return draw(env,it);
+    };
+    try { renderer.frame(ctx,probePlan,t,opt); } finally { J.drawItem=draw; }
+    const hidden = ctx.getImageData(0,0,cv.width,cv.height).data;
+    let pixels = 0;
+    for (let i=0; i<normal.length; i+=4) if (Math.max(...[0,1,2].map(k=>Math.abs(normal[i+k]-hidden[i+k])))>=16) pixels++;
+    return pixels >= 3;
+  };
+  const nextFrame = Math.min(1/fps,(token.end-onset)/2);
+  let lead = 0, found = false;
+  // Include the exact maximum when the gap is not an output-frame multiple.
+  const limit = Math.max(available,cut.inDur + cut.dur + transition);
+  const count = Math.ceil(limit*fps);
+  for (let f=0; f<=count; f++) {
+    lead = f/fps;
+    if (onset-(cut.start-lead)+1e-9 < transition) continue;
+    if (ready(lead,onset) && ready(lead,onset+nextFrame)) { found=true;break; }
+  }
+  // Insufficient slack is explicitly observable; never cut off sung source
+  // words or assert that a native effect without identified glyphs is aligned.
+  const preparation = found ? lead : 0;
+  return {onset,index,lead:Math.min(available,preparation),preparation,available,
+    status:!found?'unmeasurable-native-entry':preparation>available?'ready-compressed':'ready',
+    method:'ordinary-native-first-glyph-differential-pixels-at-token-onset',sampleStep:1/fps};
+};
 })();

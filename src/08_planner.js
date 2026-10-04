@@ -214,8 +214,8 @@ J.computeTiming = (project, parsed, audio) => {
     if (!Array.isArray(lines) || lines.length !== parsed.lines.length || !(duration > 0)) throw new Error('Invalid source timeline');
     let previous = -Infinity;
     for (const l of lines) {
-      if (!Number.isFinite(l.start) || !Number.isFinite(l.end) || l.start < 0 || l.end <= l.start || l.end > duration + 0.001 || l.start < previous) throw new Error('Invalid source interval');
-      previous = l.end;
+      if (!Number.isFinite(l.start) || !Number.isFinite(l.end) || l.start < 0 || l.end <= l.start || l.end > duration + 0.001 || l.start <= previous) throw new Error('Invalid source interval');
+      previous = l.start;
     }
     return { starts: lines.map(l => l.start), ends: lines.map(l => l.end), duration };
   }
@@ -279,6 +279,20 @@ function cutTechOf(ov, k) {
   const fromLay = ov.cutLayouts && (ov.cutLayouts[k] || ov.cutLayouts[String(k)]);
   return fromLay && !t.layout ? Object.assign({}, t, { layout: fromLay }) : t;
 }
+
+// Same native duration policy for planning and presentation-only credit scheduling.
+J.cutMotionDurations = (dur, nn, en2, ex2) => {
+        let a = J.clamp(dur * 0.36, 0.12, 0.6);
+        if (en2 === 'type') a = J.clamp(nn * 0.055 + 0.1, 0.15, dur * 0.65);
+        if (en2 === 'assemble') a = J.clamp(dur * 0.45, 0.22, 0.75);
+        if (J.ENTER[en2] && J.ENTER[en2].inDur) a = J.ENTER[en2].inDur(dur, nn);
+        if (en2 === 'cut') a = 0.12;
+        let b = ex2 === 'cut' ? 0 : J.clamp(dur * 0.3, 0.14, 0.55);
+        if (['explode', 'fall', 'drift'].includes(ex2)) b = J.clamp(dur * 0.38, 0.25, 0.7);
+        if (J.EXIT[ex2] && J.EXIT[ex2].outDur) b = J.EXIT[ex2].outDur(dur, nn);
+        if (a + b > dur * 0.92) { const f = dur * 0.92 / (a + b); a *= f; b *= f; }
+        return [a, b];
+};
 
 J.plan = (project, audio) => {
   if (J.setGlyphAspect) J.setGlyphAspect(project.glyphAspect);
@@ -364,7 +378,9 @@ J.plan = (project, audio) => {
       return;
     }
     const n = [...ln.text.replace(/\s+/g, '')].length;
-    const visEnd = project.timeline ? e : Math.min(e, s + Math.max(3.6, n * 0.5 + 1.2));
+    // Source words may cross a following onset. Keep their raw end in plan.lines,
+    // but a later source line owns the shared display interval; do not revive the old one.
+    const visEnd = project.timeline ? Math.min(e, tm.starts[li + 1] ?? e) : Math.min(e, s + Math.max(3.6, n * 0.5 + 1.2));
     const D = visEnd - s;
     plan.lines.push({ index: li, src: ln.src, id: ln.id, words: ln.words || [], lrc: ln.lrc, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, chunks: null, seed: lineSeed });
     const chunks = ln.manual || (plan.lang === 'en' ? J.phraseChunks(J.chunkText(ln.text)) : J.chunkText(ln.text));
@@ -443,18 +459,7 @@ J.plan = (project, audio) => {
         weightGrow = UU.weightGrow({ kime, nn, rng, dur });
         if (weightGrow) enter = UU.softEnter(enter, rng);
       }
-      const durs = (en2, ex2) => {
-        let a = J.clamp(dur * 0.36, 0.12, 0.6);
-        if (en2 === 'type') a = J.clamp(nn * 0.055 + 0.1, 0.15, dur * 0.65);
-        if (en2 === 'assemble') a = J.clamp(dur * 0.45, 0.22, 0.75);
-        if (J.ENTER[en2] && J.ENTER[en2].inDur) a = J.ENTER[en2].inDur(dur, nn);
-        if (en2 === 'cut') a = 0.12;
-        let b = ex2 === 'cut' ? 0 : J.clamp(dur * 0.3, 0.14, 0.55);
-        if (['explode', 'fall', 'drift'].includes(ex2)) b = J.clamp(dur * 0.38, 0.25, 0.7);
-        if (J.EXIT[ex2] && J.EXIT[ex2].outDur) b = J.EXIT[ex2].outDur(dur, nn);
-        if (a + b > dur * 0.92) { const f = dur * 0.92 / (a + b); a *= f; b *= f; }
-        return [a, b];
-      };
+      const durs = (en2, ex2) => J.cutMotionDurations(dur, nn, en2, ex2);
       let [inDur, outDur] = durs(enter, exit);
       let sch = schemeIdx;
       if (!U && nSchemes > 1 && k > 0 && rng.chance(0.12 * fx.bgSwitch)) sch = (schemeIdx + 1) % nSchemes;
@@ -640,6 +645,13 @@ J.plan = (project, audio) => {
   plan.events.sort((a, b) => a.t - b.t);
   plan.energy = audio && audio.energy ? audio.energy : null;
   plan.energyRate = audio && audio.energyRate ? audio.energyRate : 0;
+  if (project.musicResponse && project.musicResponse.mode === 'instrumental') {
+    plan.musicResponse = { mode: 'instrumental', strength: project.musicResponse.strength ?? 0.85 };
+    plan.musicOnset = audio && audio.onset ? Array.from(audio.onset) : null;
+    plan.musicOnsetRate = audio && audio.onsetRate ? audio.onsetRate : 0;
+  }
+  // Presentation-only metadata: native random choices and source segmentation stay untouched.
+  if (project.readingLayer?.mode === 'stable') plan.readingLayer = { mode: 'stable' };
   for (const line of plan.lines) {
     const tokens = J.lyricTokens(line.text, line.words || []);
     const cuts = plan.cuts.filter(c => c.line === line.index && !c.instrumental).flatMap(c => c.companion && typeof c.companion === 'object' ? [c, c.companion] : [c]);
@@ -661,6 +673,9 @@ J.plan = (project, audio) => {
       if (span.indices.length) cursor += span.indices[span.indices.length - 1] + 1;
       previousText = cut.text;
     }
+  }
+  if (plan.sourceTimeline) for (const e of plan.events) {
+    const owner=evOwner.get(e); if (owner) e.sourceCutIndex=owner.index;
   }
   return plan;
 };

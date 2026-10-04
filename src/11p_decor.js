@@ -854,7 +854,8 @@ DEF.halftonePatch = {
     const pw = W * J.rr(0.38, 0.58, P.seed, 1), ph = H * J.rr(0.38, 0.6, P.seed, 2);
     let g = J.clamp(Math.min(W, H) * 0.018, 12 * u, 22 * u);
     while ((pw / g) * (ph / g) > 1100) g *= 1.15;
-    const col = P.accent ? sc.accent : sc.sub, al = (P.accent ? 0.3 : 0.2) * (dark(env) ? 1 : 0.8) * o;
+    const music = env.music, pulse = music ? music.strength * music.pulse : 0, level = music ? music.strength * music.level : 0;
+    const col = P.accent ? sc.accent : sc.sub, al = (P.accent ? 0.3 : 0.2) * (dark(env) ? 1 : 0.8) * o * (1 + 0.8 * pulse + 0.15 * level);
     const lines = (P.v | 0) % 2 === 1;
     const grow = J.clamp(env.lt / 0.7) * 1.3;
     const f = (x, y) => { const d = Math.hypot((x - ox) / pw, (y - oy) / ph); return J.clamp(1 - d) * J.clamp((grow - d) * 3); };
@@ -1038,6 +1039,7 @@ DEF.petals = {
     const bb = getBB(env, bb0), { W, H, sc } = env, u = U(env);
     const o = outE(env); if (o <= 0.003 || env.lt < 0) return;
     const N = Math.min(26, 10 + (P.n | 0) * 5), dir = P.right ? 1 : -1;
+    const music = env.music, pulse = music ? music.strength * music.pulse : 0, level = music ? music.strength * music.level : 0;
     const cA = [], cB = [];
     for (let i = 0; i < N; i++) {
       const r = k => J.r(P.seed, i, k);
@@ -1047,7 +1049,7 @@ DEF.petals = {
       const x = wrap(r(4) * W + vx * env.ltb + Math.sin(env.ltb * (0.8 + r(5)) + r(6) * 6) * 30 * u, -60 * u, W + 120 * u);
       const y = wrap(r(7) * H + vy * env.ltb, -60 * u, H + 120 * u);
       const al = clearOf(bb, x, y, 12 * u, 28 * u); if (al <= 0.5) continue;
-      const L = (24 + r(8) * 20) * u * q, rot = r(9) * TAU + env.ltb * (r(10) - 0.5) * 3;
+      const L = (24 + r(8) * 20) * u * q * (1 + 0.35 * pulse + 0.08 * level), rot = r(9) * TAU + env.ltb * (r(10) - 0.5) * 3 + pulse * (r(10) - 0.5) * 0.8;
       const fx = Math.max(0.2, Math.abs(Math.cos(env.ltb * (1.2 + r(11) * 2) + r(12) * 6)));
       const c = Math.cos(rot), s = Math.sin(rot);
       const pts = PETAL.map(([px, py]) => { const X = px * L * fx, Y = py * L; return [x + X * c - Y * s, y + X * s + Y * c]; });

@@ -668,7 +668,8 @@ J.LAYOUTS = {
         const remain = Math.max(0, env.cut.dur - env.lt);
         env.draw({ text: remain.toFixed(1), font: env.st.fonts.display[0], size: H * 0.36, x: W / 2, y: H / 2, color: sc.fg, alpha: 0.9 });
       }
-      for (let k = 0; k < 3; k++) env.circle(W / 2, H / 2, H * (0.2 + k * 0.1) * (1 + 0.04 * Math.sin(lb * 2 + k)), null, sc.sub, 1.2, 0.5, false);
+      const music = env.music, pulse = music ? music.strength * music.pulse : 0, level = music ? music.strength * music.level : 0;
+      for (let k = 0; k < 3; k++) env.circle(W / 2, H / 2, H * (0.2 + k * 0.1) * (1 + 0.04 * Math.sin(lb * 2 + k)) * (1 + (0.23 - k * 0.04) * pulse + 0.04 * level), null, sc.sub, 1.2 * (1 + 0.75 * pulse), 0.5 + 0.3 * pulse, false);
       env.draw({ text: env.cut.text || '— interlude —', font: env.st.fonts.body[0], size: fs, x: W / 2, y: H * 0.82, track: 0.4, color: sc.sub, ghost: false });
       return { x0: W * 0.35, x1: W * 0.65, y0: H * 0.3, y1: H * 0.7, cx: W / 2, cy: H / 2, boxes: [] };
     },
