@@ -154,7 +154,31 @@ J.joinWords = arr => {
 /* mostly Latin letters (English, Indonesian, Vietnamese … lyrics) */
 J.isLatinText = t => { const s = String(t || '').replace(/\s/g, ''); if (!s) return false; const n = (s.match(/[A-Za-z\u00c0-\u024f\u1e00-\u1eff]/g) || []).length; return n / [...s].length >= 0.6; };
 
+J.isChineseText = text => /^zh/.test(J.segLocale?.() || '') && /[\p{Script=Han}]/u.test(text);
+J.semanticSplit = text => {
+  const chars = [...text]; let at = 0, best = null, cost = Infinity;
+  for (const segment of J.segments(text)) {
+    at += [...segment].length;
+    if (at >= chars.length) break;
+    const score = Math.abs(at - chars.length / 2) + (at === 1 || at === chars.length - 1 ? 2 : 0);
+    if (score < cost) { best = at; cost = score; }
+  }
+  return best == null ? [text] : [chars.slice(0,best).join(''),chars.slice(best).join('')];
+};
 J.chunkText = (text) => {
+  if (J.isChineseText(text)) {
+    const out = []; let current = '';
+    for (const sg of J.segments(text)) {
+      if (!sg.trim()) { if(current)out.push(current);current='';continue; }
+      if ([...sg].every(J.isPunct) && !current && out.length) { out[out.length-1]+=sg;continue; }
+      if (current && [...current + sg].length > 6 && ![...sg].every(J.isPunct)) { out.push(current); current = ''; }
+      current += sg;
+    }
+    if (current) out.push(current);
+    // A single sung tail glyph is not a useful independent camera shot.
+    if (out.length > 1 && [...out.at(-1)].some(J.isKanji) && [...out.at(-1)].filter(ch => !J.isPunct(ch)).length <= 1) out[out.length-2] += out.pop();
+    return out.length ? out : [text];
+  }
   const segs = J.segments(text);
   const chunks = []; let cur = null;
   const close = () => { if (cur && cur.s.trim()) chunks.push(cur.s.trim()); cur = null; };

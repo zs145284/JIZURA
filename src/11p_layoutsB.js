@@ -1201,7 +1201,7 @@ J.register('layout', 'zoomRepeat', {
       else Object.assign(it, { color: J.mix(sc.bg, sc.sub, 0.16), alpha: a });
       env.draw(it);
     }
-    J.mainDraw(env, { text: mt, font: Pm.font, size, x: W / 2, y: H / 2, track: 0.03, lead: 1.1, fill: false, stroke: size * 0.2, strokeColor: sc.bg, ghost: false, plain: true });
+    J.mainDraw(env, { text: mt, font: Pm.font, size, x: W / 2, y: H / 2, track: 0.03, lead: 1.1, fill: false, stroke: size * 0.2, strokeColor: sc.bg, ghost: false, plain: true, lyric: false, textRole: 'mask' });
     return J.mainDraw(env, { text: mt, font: Pm.font, size, x: W / 2, y: H / 2, track: 0.03, lead: 1.1, color: sc.fg });
   },
 }, P);

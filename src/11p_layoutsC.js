@@ -110,6 +110,7 @@ function segBounds(t) {
   return out;
 }
 function split2(word, force) {
+  if (J.isChineseText(word)) return J.semanticSplit(word);
   const chars = [...word], n = chars.length, sb = segBounds(word);
   let best = Math.max(1, Math.floor(n / 2)), bs = -1e9;
   for (let c = 1; c < n; c++) {
@@ -1401,7 +1402,7 @@ reg('ema', {
     else if (p.emblem === 'wave') { for (let j = 0; j < 2; j++) { const pp = []; for (let i = 0; i <= 12; i++) pp.push([-hw * 0.38 + hw * 0.16 * i / 12, ey + j * es * 0.7 + Math.sin(i / 12 * J.TAU) * es * 0.25]); env.line(pp, emb, Math.max(2, es * 0.18), ha, false); } }
     else if (p.emblem === 'mount') env.poly([[-hw * 0.4, ey + es * 0.7], [-hw * 0.3, ey - es * 0.8], [-hw * 0.2, ey + es * 0.7]], emb, ha, false);
     else { env.circle(-hw * 0.32, ey, es * 0.6, null, emb, Math.max(2, es * 0.2), ha, false); env.circle(-hw * 0.26, ey, es * 0.6, null, emb, Math.max(2, es * 0.2), ha, false); }
-    env.draw({ text: '奉納', font: serifF(env), size: es * 1.1, track: 0.3, x: hw * 0.3, y: ey, color: ink, alpha: ha * 0.8, ghost: false });
+    env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'votive','奉納'), font: serifF(env), size: es * 1.1, track: 0.3, x: hw * 0.3, y: ey, color: ink, alpha: ha * 0.8, ghost: false });
     // the wish (lyric), handwritten
     const ax = -hw * 0.42, aw = hw * 0.84, ay = -hh / 2 + r * 1.6, ah = hh / 2 - ay - hh * 0.14;
     let bb;
@@ -1543,11 +1544,12 @@ reg('newspaper', {
     const m = pw * 0.035, tx = C.text, lw = Math.max(1, u * 0.0013);
     const inner = [m, m, pw - m * 2, ph - m * 2];
     const hl = plateCol(sc, [sc.accent], C.fill, 2) === sc.accent ? sc.accent : tx;
+    const mast = J.layoutCopy(env,'journal',p.mast);
     // masthead (題字) — top right, vertical, in a plate
     const mw = Math.min(pw * 0.13, ph * 0.12), mh = Math.min(ph * 0.34, mw * 2.6);
     const mX = pw - m - mw, mY = m;
     env.rect(mX, mY, mw, mh, hl, a, false);
-    env.draw({ text: p.mast, font: p.font, size: Math.min(mw * 0.62, mh * 0.9 / p.mast.length), vertical: true, x: mX + mw / 2, y: mY + mh / 2, track: 0.05, color: onCol(sc, hl), alpha: a, ghost: false });
+    env.draw({ textRole: 'template', lyric: false, text: mast, font: p.font, size: Math.min(mw * 0.62, mh * 0.9 / [...mast].length), vertical: true, x: mX + mw / 2, y: mY + mh / 2, track: 0.05, color: onCol(sc, hl), alpha: a, ghost: false });
     env.draw({ text: '第' + p.issue + '号', font: bodyF(env), size: ls * 0.7, x: mX + mw / 2, y: mY + mh + ls * 0.8, color: tx, alpha: a * 0.8, ghost: false });
     env.draw({ text: J.fmtTime(env.cut.start), font: monoF(env), size: ls * 0.7, x: mX + mw / 2, y: mY + mh + ls * 1.8, color: tx, alpha: a * 0.8, ghost: false });
     // tiers (段) of greeked vertical copy
@@ -2260,16 +2262,16 @@ reg('calendar', {
       const fa = tin(env, 0.1, 0.4, E.outCubic) * pa;
       const m = pw * 0.07;
       env.draw({ text: String(p.month + 1), font: p.font, size: ph * 0.1, align: 'left', x: x0 + m, y: y0 + bindH + ph * 0.09, color: C.text, alpha: fa, ghost: false });
-      env.draw({ text: MON_E[p.month], font: monoF(env), size: ls * 0.9, track: 0.3, align: 'left', x: x0 + m + ph * 0.1 * 0.9, y: y0 + bindH + ph * 0.1, color: C.text, alpha: fa * 0.8, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'date',MON_E[p.month]), font: monoF(env), size: ls * 0.9, track: 0.3, align: 'left', x: x0 + m + ph * 0.1 * 0.9, y: y0 + bindH + ph * 0.1, color: C.text, alpha: fa * 0.8, ghost: false });
       env.rrect(x0 + pw - m - ls * 3.2, y0 + bindH + ph * 0.06, ls * 3.2, ls * 1.6, ls * 0.2, null, fa, false, red, Math.max(1.5, ls * 0.08));
-      env.draw({ text: ROKUYO[(day + p.month) % 6], font: serifF(env), size: ls * 1.05, x: x0 + pw - m - ls * 1.6, y: y0 + bindH + ph * 0.06 + ls * 0.8, color: red, alpha: fa, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'fortune',ROKUYO[(day + p.month) % 6]), font: serifF(env), size: ls * 1.05, x: x0 + pw - m - ls * 1.6, y: y0 + bindH + ph * 0.06 + ls * 0.8, color: red, alpha: fa, ghost: false });
       const dcol0 = dayCol(wd), dcol = J.contrast(dcol0, C.fill) >= 3 ? dcol0 : C.text;
       const fb = fitBlock(t0, p.font, pw - m * 2, ph * 0.46, { lead: 1.08, track: 0.02 }, 3);
       const size = Math.min(fb.size, u * 0.24);
       const bb = J.mainDraw(env, { text: fb.text, font: p.font, size, x: W / 2, y: y0 + bindH + ph * 0.47, lead: 1.08, track: 0.02, color: dcol === C.text ? C.text : dcol, noHold: plateHold(env) });
       env.line([[x0 + m, y0 + ph * 0.8], [x0 + pw - m, y0 + ph * 0.8]], C.text, Math.max(1, u * 0.0015), fa * 0.5, false);
-      env.draw({ text: WD_J[wd] + '曜日', font: serifF(env), size: ls * 1.5, align: 'left', x: x0 + m, y: y0 + ph * 0.88, color: dcol, alpha: fa, ghost: false });
-      env.draw({ text: day + '  ' + WD_E[wd], font: monoF(env), size: ls * 1.1, track: 0.2, align: 'right', x: x0 + pw - m, y: y0 + ph * 0.88, color: dcol, alpha: fa, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'date',WD_J[wd] + '曜日'), font: serifF(env), size: ls * 1.5, align: 'left', x: x0 + m, y: y0 + ph * 0.88, color: dcol, alpha: fa, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'date',day + '  ' + WD_E[wd]), font: monoF(env), size: ls * 1.1, track: 0.2, align: 'right', x: x0 + pw - m, y: y0 + ph * 0.88, color: dcol, alpha: fa, ghost: false });
       ctx.restore();
       // binding with rings
       env.rect(x0 - pw * 0.02, y0, pw * 1.04, bindH, bindC, a, false);
@@ -3068,7 +3070,7 @@ reg('warningLabel', {
       env.rrect(x0, y0, lw0, hh, lh0 * 0.04, warnC, a, false);
       env.rect(x0, y0 + hh * 0.5, lw0, hh * 0.5, warnC, a, false);
       warnTri(env, x0 + hh * 0.75, y0 + hh * 0.52, hh * 0.72, onCol(sc, warnC), warnC, a * he, flash);
-      const ht = we + '  ' + wj, hs = Math.min(hh * 0.46, J.fitSize(ht, 'gothic_black', lw0 - hh * 1.8, hh, { track: 0.12 }));
+      const ht = J.layoutCopy(env,'title',we + '  ' + wj), hs = Math.min(hh * 0.46, J.fitSize(ht, 'gothic_black', lw0 - hh * 1.8, hh, { track: 0.12 }));
       env.draw({ text: ht, font: 'gothic_black', size: hs, track: 0.12, align: 'left', x: x0 + hh * 1.45, y: y0 + hh * 0.52, color: onCol(sc, warnC), alpha: a * he, ghost: false });
       ay0 = y0 + hh; ah = lh0 - hh;
     } else if (p.variant === 'stripe') {
@@ -3077,14 +3079,14 @@ reg('warningLabel', {
       stripes(env, x0 + 2, y0 + 2, lw0 - 4, sb, inkC, hazard, sb * 0.7, 45, a, off);
       stripes(env, x0 + 2, y0 + lh0 - sb - 2, lw0 - 4, sb, inkC, hazard, sb * 0.7, 45, a, -off);
       warnTri(env, x0 + lw0 / 2, y0 + sb + lh0 * 0.16, lh0 * 0.2, warnC, onCol(sc, warnC), a, flash);
-      env.draw({ text: wj + '　' + we, font: 'gothic_black', size: lh0 * 0.06, track: 0.2, x: x0 + lw0 / 2, y: y0 + sb + lh0 * 0.33, color: inkC, alpha: a, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'title',wj + '　' + we), font: 'gothic_black', size: lh0 * 0.06, track: 0.2, x: x0 + lw0 / 2, y: y0 + sb + lh0 * 0.33, color: inkC, alpha: a, ghost: false });
       ay0 = y0 + sb + lh0 * 0.38; ah = lh0 - sb * 2 - lh0 * 0.38;
     } else {
       const sw2 = lw0 * (port ? 0.3 : 0.26);
       env.rrect(x0, y0, sw2, lh0, lh0 * 0.04, warnC, a, false);
       env.rect(x0 + sw2 * 0.5, y0, sw2 * 0.5, lh0, warnC, a, false);
       warnTri(env, x0 + sw2 / 2, y0 + lh0 * 0.42, sw2 * 0.68, onCol(sc, warnC), warnC, a, flash);
-      env.draw({ text: we, font: 'gothic_black', size: sw2 * 0.14, track: 0.1, x: x0 + sw2 / 2, y: y0 + lh0 * 0.78, color: onCol(sc, warnC), alpha: a, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'title',we), font: 'gothic_black', size: sw2 * 0.14, track: 0.1, x: x0 + sw2 / 2, y: y0 + lh0 * 0.78, color: onCol(sc, warnC), alpha: a, ghost: false });
       ax0 = x0 + sw2; aw = lw0 - sw2;
     }
     const fb = fitBlock(env.cut.text.trim(), p.font, aw * 0.86, ah * 0.66, { lead: 1.08, track: 0.02 }, port ? 3 : 2);
@@ -3206,8 +3208,8 @@ reg('nameTag', {
       const hh = bh * 0.3;
       env.rect(x0 + bw * 0.035, y0 + hh, bw * 0.93, bh * 0.58, C.fill, a, false);
       const hc = onCol(sc, bandC);
-      env.draw({ text: 'HELLO', font: 'gothic_black', size: hh * 0.52, track: 0.08, x: 0, y: y0 + hh * 0.4, color: hc, alpha: a, ghost: false });
-      env.draw({ text: 'my name is', font: bodyF(env), size: hh * 0.2, track: 0.15, x: 0, y: y0 + hh * 0.82, color: hc, alpha: a, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'title','HELLO'), font: 'gothic_black', size: Math.min(hh*.52,J.fitSize(J.layoutCopy(env,'title','HELLO'),'gothic_black',bw*.84,hh*.55,{track:.08})), track: 0.08, x: 0, y: y0 + hh * 0.4, color: hc, alpha: a, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'artist','my name is'), font: bodyF(env), size: hh * 0.2, track: 0.15, x: 0, y: y0 + hh * 0.82, color: hc, alpha: a, ghost: false });
       const fb = fitBlock(t0, p.font, bw * 0.84, bh * 0.46, { lead: 1.05 }, 2);
       const size = Math.min(fb.size, bh * 0.36);
       bb = J.mainDraw(env, { text: fb.text, font: p.font, size, x: 0, y: y0 + hh + bh * 0.29, lead: 1.05, rot: -2, color: C.text, noHold: plateHold(env), mi: miAt(env, 0.3) });
@@ -3218,9 +3220,9 @@ reg('nameTag', {
       env.line([[x0 + bw * 0.2, pinY], [x0 + bw * 0.8, pinY]], sc.sub, Math.max(3, u * 0.004), a, false);
       env.circle(x0 + bw * 0.8, pinY, u * 0.008, sc.sub, null, 0, a, false);
       const fy = y0 + bh * 0.2;
-      env.draw({ text: p.grade + ' ねん　' + p.cls + ' くみ', font: p.font, size: bh * 0.1, align: 'left', x: x0 + bw * 0.08, y: fy, color: C.text, alpha: a, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'artist',p.grade + ' ねん　' + p.cls + ' くみ'), font: p.font, size: bh * 0.1, align: 'left', x: x0 + bw * 0.08, y: fy, color: C.text, alpha: a, ghost: false });
       env.line([[x0 + bw * 0.06, fy + bh * 0.09], [x0 + bw * 0.94, fy + bh * 0.09]], bandC, Math.max(2, u * 0.003), a, false);
-      env.draw({ text: 'なまえ', font: bodyF(env), size: bh * 0.07, align: 'left', x: x0 + bw * 0.08, y: fy + bh * 0.19, color: bandC, alpha: a, ghost: false });
+      env.draw({ textRole: 'template', lyric: false, text: J.layoutCopy(env,'title','なまえ'), font: bodyF(env), size: bh * 0.07, align: 'left', x: x0 + bw * 0.08, y: fy + bh * 0.19, color: bandC, alpha: a, ghost: false });
       env.circle(x0 + bw * 0.88, y0 + bh * 0.2, bh * 0.08, bandC, null, 0, a, false);
       const fb = fitBlock(t0, p.font, bw * 0.84, bh * 0.44, { lead: 1.05 }, 2);
       const size = Math.min(fb.size, bh * 0.34);

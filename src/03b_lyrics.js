@@ -32,13 +32,22 @@ J.presentationPlan = plan => {
   if (plan.presentationApplied) return plan;
   if (presentationViews.has(plan)) return presentationViews.get(plan);
   const shiftCut = c => {
+    if (c.instrumental || c.sourceRole === 'credit') return {...c};
     const dt = (c.lyricOffsetMs || 0) / 1000;
     return {...c, start:c.start+dt, end:c.end+dt, sourceStart:c.start, sourceEnd:c.end,
       lyricTokens:(c.lyricTokens || []).map(w => ({...w,start:w.start+dt,end:w.end+dt})),
       ...(c.companion && typeof c.companion === 'object' ? {companion:shiftCut(c.companion)} : {})};
   };
   const cuts = plan.cuts.map(shiftCut);
-  let continued = false;
+  let continued = false, prepared = false, budgeted = false;
+  const protectLastOnset = cut => {
+    if (cut.sourceRole !== 'lyric' || cut.instrumental || !cut.wordTiming) return;
+    const tokens = (cut.lyricTokens || []).filter(w => w.end > w.start && w.indices.some(i => cut.lyricIndices?.includes(i)));
+    if (!tokens.length) return;
+    const last = Math.max(...tokens.map(w => w.start));
+    const duration = Math.min(cut.outDur,Math.max(0,cut.end-last));
+    if (duration < cut.outDur) { cut.outDur=duration; budgeted=true; }
+  };
   // The native planner reserves interludes for gaps above 1.3s. Smaller
   // lyric-to-lyric pauses belong to the outgoing shot's release, not a new
   // music shot. Stretch its existing exit without replaying the entrance or
@@ -54,21 +63,25 @@ J.presentationPlan = plan => {
     if (cut.outDur > 0) cut.outDur = Math.max(cut.outDur, gap);
     continued = true;
   });
+  cuts.forEach(protectLastOnset);
   // Work backward: a preceding release ends where the next native entrance
   // must begin, rather than waiting for the first sung word to start it.
   // Reverse order also finalizes duration-dependent layouts before probing.
-  if (continued && J.prepareLyricEntry) for (let i = cuts.length - 2; i >= 0; i--) {
+  if (plan.sourceTimeline && plan.readingLayer?.mode !== 'stable' && J.prepareLyricEntry) for (let i = cuts.length - 2; i >= 0; i--) {
     const cut = cuts[i], next = cuts[i + 1];
-    if (!cut.lyricPause) continue;
-    const entry = J.prepareLyricEntry(plan, next, cut.lyricPause.start);
+    if (cut.sourceRole !== 'lyric' || next?.sourceRole !== 'lyric' || cut.instrumental || next.instrumental) continue;
+    const entry = J.prepareLyricEntry(plan, next, cut.lyricPause?.start ?? cut.end);
     if (!entry) continue;
+    prepared = true;
     next.lyricEntry = entry;
     next.lyricEntryLead = entry.preparation; next.lyricEntryIndex = entry.index;
     next.start -= entry.lead; next.dur = next.end - next.start;
     if (entry.preparation > entry.lead) next.motionStart = next.start + entry.lead - entry.preparation;
-    cut.end = next.start; cut.dur = cut.end - cut.start;
-    cut.lyricPause.end = next.start;
-    if (cut.outDur > 0) cut.outDur = Math.max(plan.cuts[i].outDur, cut.end - cut.lyricPause.start);
+    if (cut.lyricPause) {
+      cut.end = next.start; cut.dur = cut.end - cut.start;
+      cut.lyricPause.end = next.start;
+      if (cut.outDur > 0) cut.outDur = Math.max(plan.cuts[i].outDur, cut.end - cut.lyricPause.start);
+    }
   }
   // Metadata is not sung text. A leading credit block shares the pre-vocal
   // window, independent of placeholder word intervals in an LRC/AWLRC file.
@@ -113,9 +126,26 @@ J.presentationPlan = plan => {
       }
     }
   }
-  if (!continued && !openingCredits && !plan.cuts.some(c => c.lyricOffsetMs)) return plan;
+  cuts.forEach(protectLastOnset);
+  if (!continued && !prepared && !budgeted && !openingCredits && !plan.cuts.some(c => c.lyricOffsetMs)) return plan;
   const view = {...plan,presentationApplied:true,cuts,events,...(openingCredits?{openingCredits}:{})};
   presentationViews.set(plan,view); return view;
+};
+// Template text has a declared purpose; it is not inferred from the lyric string.
+J.layoutCopy = (env, role, native) => {
+  if ((env.plan?.lang || J.segLocale?.()) === 'ja') return native;
+  const title = env.plan?.title || '', artist = env.plan?.artist || '';
+  if (role === 'title') return title;
+  if (role === 'artist') return artist;
+  if (role === 'journal') return /^zh/.test(env.plan?.lang || '') ? (env.plan.lang === 'zh-Hant' ? '音樂札記' : '音乐札记') : 'MUSIC JOURNAL';
+  // Votive fortune, fictitious school/date fields and greeting are decorative Japanese template context.
+  return '';
+};
+J.searchSuggestions = (env, native) => {
+  if ((env.plan?.lang || J.segLocale?.()) === 'ja') return native;
+  const title = env.plan?.title || '', artist = env.plan?.artist || '';
+  const suffix = /^zh/.test(env.plan?.lang || '') ? (env.plan.lang === 'zh-Hant' ? '歌詞' : '歌词') : 'lyrics';
+  return [...new Set([title,artist,title && title+' '+suffix,title && artist && artist+' '+title].filter(Boolean))];
 };
 // Auxiliary source text is a presentation role, separate from primary lyrics and motion copies.
 J.lyricContextVisible = env => env.plan?.lyricContext !== 'off';

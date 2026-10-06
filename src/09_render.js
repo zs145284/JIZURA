@@ -6,6 +6,12 @@
 const E = J.E;
 
 const mk = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, w | 0); c.height = Math.max(1, h | 0); return c; };
+// Native entrances, morphs and transitions share the same source-prepared clock.
+const motionLocal = (cut, time) => {
+  if (cut.motionStart == null) return time - cut.start;
+  const onset = cut.lyricEntry.onset;
+  return time < onset ? Math.max(0,time-cut.start)*(onset-cut.motionStart)/Math.max(1e-9,onset-cut.start) : time-cut.motionStart;
+};
 
 J.cutAt = (plan, t) => {
   plan = J.presentationPlan(plan);
@@ -180,7 +186,7 @@ class Renderer {
     const ghostOn = (fx.chroma ?? 0.7) > 0.02 && (st.ghost ?? 1) > 0.02 && !opt.noGhost;
     // モーフ (統一感): during the first moments of a morph cut its lyric is drawn by drawMorph (glyphs glide / melt)
     const MC = !opt.noTrans && !opt.glyphLog && mainCut && mainCut.morph && mainCut.index > 0 ? mainCut : null;
-    const mPrev = MC ? plan.cuts[MC.index - 1] : null, mlt = MC ? tq - MC.start : 0;
+    const mPrev = MC ? plan.cuts[MC.index - 1] : null, mlt = MC ? motionLocal(MC,tq) : 0;
     const morphOn = !!(MC && mPrev && mlt < MC.morph.dur && Math.abs(mPrev.end - MC.start) < 0.06);
     let mainBB = null, mainEnv = null;
     // camera blur (focus pulls etc.) is applied ONCE to the whole content layer — a blur filter on every
@@ -250,7 +256,7 @@ class Renderer {
     }
     // ---------- cut-to-cut transition: composite the previous cut's resting frame with this one ----------
     if (!opt.noTrans && mainCut && mainCut.trans && J.TRANS[mainCut.trans] && mainCut.index > 0) {
-      const lt = tq - mainCut.start, dur = mainCut.transDur || 0.35;
+      const lt = motionLocal(mainCut,tq), dur = mainCut.transDur || 0.35;
       const prev = plan.cuts[mainCut.index - 1];
       if (lt < dur && prev && Math.abs(prev.end - mainCut.start) < 0.06) {
         const A = this.ensure(this.transA || (this.transA = mk(2, 2)), cw, ch), B = this.ensure(this.transB || (this.transB = mk(2, 2)), cw, ch);
@@ -357,9 +363,7 @@ class Renderer {
   }
   makeEnv(ctx, plan, cut, sc, o) {
     if (cut?.motionStart != null) {
-      const displayStart = cut.start, onset = cut.lyricEntry.onset;
-      const local = time => time < onset ?
-        Math.max(0,time-displayStart)*(onset-cut.motionStart)/Math.max(1e-9,onset-displayStart) : time-cut.motionStart;
+      const local = time => motionLocal(cut,time);
       const time = cut.start + o.lt, lt = local(time);
       o = {...o,audioT:o.audioT ?? o.t,t:cut.motionStart+lt,lt,ltb:local(time+(o.ltb-o.lt))};
       cut = {...cut,start:cut.motionStart,dur:cut.end-cut.motionStart};
@@ -373,7 +377,10 @@ class Renderer {
     env.music = cut && (cut.instrumental || plan.lines[cut.line]?.interlude) ? o.music : null;
     const ghost = env.pass !== 'main';
     const colOf = (c, g) => (ghost ? (g === false ? null : env.passColor) : c);
-    env.draw = it => J.drawItem(env, !it.textRole && J.sourceTextContext(env,it.text) ? {...it,textRole:'context'} : it);
+    env.draw = it => {
+      if (it.textRole === 'primary') J.bindLyricItem?.(env,it);
+      return J.drawItem(env, !it.textRole && J.sourceTextContext(env,it.text) ? {...it,textRole:'context'} : it);
+    };
     env.rect = (x, y, w, h, c, a = 1, g = true) => { const col = colOf(c, g); if (!col || a <= 0) return; ctx.globalAlpha = a; ctx.fillStyle = col; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1; };
     env.line = (pts, c, lw = 1, a = 1, g = true) => {
       const col = colOf(c, g); if (!col || a <= 0 || pts.length < 2) return;

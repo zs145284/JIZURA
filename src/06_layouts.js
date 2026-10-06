@@ -223,6 +223,7 @@ J.LAYOUTS = {
         for (let i = 0; i < cols; i++) {
           const side = i !== Math.round(mid);
           const it = { text, font: P.font, size, x: W / 2 + (i - mid) * size * 1.75, y: H / 2, vertical: true, track: 0.04, color: sc.fg, mi: Math.abs(i - mid) * 2 };
+          if (side) Object.assign(it, { textRole: 'motion-echo', lyricCopy: true });
           if (side && P.side === 'outline') { it.fill = false; it.stroke = Math.max(1.2, size * 0.012); }
           if (side && P.side === 'dim') it.alpha = 0.38;
           const r = J.mainDraw(env, it); if (!side) bb = r;
@@ -396,7 +397,10 @@ J.LAYOUTS = {
       const n = glyphCount(text0);
       const text = n >= 5 ? J.splitLines(text0, Math.ceil(n / 2)) : text0;
       const lines = text.split('\n').length;
-      const size = lines > 1 ? Math.min(H * 0.56, W * 1.2 / (Math.ceil(n / 2) * 0.98)) : Math.min(H * 0.98, W * 1.3 / (n * 0.96));
+      const oversized = lines > 1 ? Math.min(H * 0.56, W * 1.2 / (Math.ceil(n / 2) * 0.98)) : Math.min(H * 0.98, W * 1.3 / (n * 0.96));
+      const fitted = Math.min(oversized,J.fitSize(text,P.font,W*.78,H*.76,{lead:.98,track:-.02}));
+      const resolve = E.inOutCubic(env.pIn) * (1-E.inCubic(env.pOut));
+      const size = J.lerp(oversized,fitted,resolve);
       const u = env.lt / env.cut.dur;
       const bb = J.mainDraw(env, { text, font: P.font, size, x: W / 2 + (0.5 - u) * W * 0.16 * P.dir, y: H / 2 + H * 0.02, lead: 0.98, track: -0.02, color: sc.fg, gradient: P.grad && sc.grad ? sc.grad : null });
       if (P.label) {
@@ -419,6 +423,7 @@ J.LAYOUTS = {
       const text = env.cut.text.replace(/\s+/g, '');
       let units = P.unit === 'char' ? [...text].filter(c => !J.isPunct(c)) : (env.cut.words && env.cut.words.length ? env.cut.words : [text]);
       if (!units.length) units = [text];
+      env.lyricUnits = J.lyricUnitRanges(env.cut,units);
       const out = 1 - E.inCubic(env.pOut);
       const drawLabel = (u, x, y, rot, fs, q, i) => {
         if (q <= 0) return;
@@ -426,7 +431,7 @@ J.LAYOUTS = {
         const w = m.w + fs * 0.7, h = fs * 1.36;
         const ctx = env.ctx; ctx.save(); ctx.translate(x, y); ctx.rotate(rot * J.DEG); ctx.scale(q, q);
         env.rect(-w / 2, -h / 2, w, h, sc.ink, 1);
-        env.draw({ text: u, font: P.font, size: fs, track: 0.04, x: 0, y: 0, color: sc.bg, ghost: false });
+        env.draw({ text: u, textRole: i < units.length ? 'primary' : 'motion-echo', lyricUnit: i % units.length, lyricCopy: i >= units.length, font: P.font, size: fs, track: 0.04, x: 0, y: 0, color: sc.bg, ghost: false });
         ctx.restore();
       };
       let bb = null;
@@ -594,6 +599,7 @@ J.LAYOUTS = {
       let bb = null;
       for (let k = n - 1; k >= 0; k--) {
         const it = { text, font: P.font, size, x: W / 2 + P.xs * W * k, y: y0 + P.dir * k * step, track: 0.03, color: sc.fg, mi: k * 1.2 };
+        if (k > 0) Object.assign(it, { textRole: 'motion-echo', lyricCopy: true });
         if (k > 0) { if (P.style === 'outline') Object.assign(it, { fill: false, stroke: Math.max(1.2, size * 0.014), alpha: 0.85 }); else it.alpha = 0.6 * Math.pow(0.58, k - 1); }
         const r = J.mainDraw(env, it); if (k === 0) bb = r;
       }

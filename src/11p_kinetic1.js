@@ -40,6 +40,7 @@ const accOn = (sc) => (J.contrast(sc.accent, sc.bg) >= 1.7 ? sc.accent : sc.fg);
 const unitCache = new Map();
 function splitUnit(s) {
   const t = String(s).trim();
+  if (J.isChineseText(t)) return J.semanticSplit(t);
   if (/\s/.test(t)) {                                   // latin phrase: at the space nearest the middle
     const mid = t.length / 2; let bi = -1, bd = 1e9;
     for (let i = 0; i < t.length; i++) if (t[i] === ' ' && Math.abs(i - mid) < bd) { bd = Math.abs(i - mid); bi = i; }
@@ -51,7 +52,7 @@ function splitUnit(s) {
 }
 function unitsOf(cut, maxU = 6, minU = 1) {
   const text = String(cut.text || '');
-  const key = text + '\u0002' + (cut.words || []).join('\u0001') + '\u0002' + maxU + ':' + minU;
+  const key = (J.segLocale?.() || '') + '\u0002' + text + '\u0002' + (cut.words || []).join('\u0001') + '\u0002' + maxU + ':' + minU;
   let w = unitCache.get(key);
   if (w) return w;
   const lat = hasLatin(text);
@@ -871,16 +872,18 @@ reg('knTumble', {
         const e = E.outExpo(clamp(lt / 0.4)) * out;
         env.line([[x1 - (x1 - x0) * e, base + lw], [x1, base + lw]], sc.sub, lw, 0.8, false);
       }
-      if (lt < ts[i]) continue;
-      // rolls in from the right over its bottom-left edge: quarter turns, footprint alternating w / h
+      // The roll duration follows the actual box path. With source word clocks,
+      // land at the unit's onset rather than starting that entire path afterwards.
       const m = Math.min(3, Math.max(1, Math.ceil((W - xF) / (2 * (w + h))))), steps = 4 * m;
-      const Tm = T * (0.7 + 0.3 * m), q = clamp((lt - ts[i]) / Tm) * steps, j = Math.min(steps - 1, Math.floor(q)), f = q >= steps ? 1 : q - j;
+      const Tm = T * (0.7 + 0.3 * m), from = c.wordTiming && env.lyricUnits ? ts[i] - Tm : ts[i];
+      if (lt < from) continue;
+      const q = clamp((lt - from) / Tm) * steps, j = Math.min(steps - 1, Math.floor(q)), f = q >= steps ? 1 : q - j;
       let xL = xF + m * 2 * (w + h);
       for (let s2 = 0; s2 < j; s2++) xL -= s2 % 2 ? w : h;
       const fw = j % 2 ? h : w, fh = j % 2 ? w : h, ph = -90 * E.inOutSine(f);
       const [dx, dy] = rotV(fw / 2, -fh / 2, ph);
       const cx = xL + dx, cy = base + dy, rot = -90 * j + ph;
-      const done = q >= steps, land = done ? lt - ts[i] - Tm : -1;
+      const done = q >= steps, land = done ? lt - from - Tm : -1;
       const sq = land >= 0 ? Math.exp(-land * 14) * 0.1 : 0;
       if (Pm.box !== 'none') {
         ctx.save(); ctx.translate(cx, cy + sq * h * 0.5); ctx.rotate(rot * DEG); ctx.scale(1 + sq * 0.5, 1 - sq);
@@ -890,7 +893,7 @@ reg('knTumble', {
       }
       const plate = Pm.box === 'plate';
       const it = { text: units[i], lyricUnit: i, font: Pm.font, size, x: cx, y: cy + sq * h * 0.5, rot, sx: 1 + sq * 0.5, sy: 1 - sq, track: 0.02,
-        color: plate ? onCol(sc, i === Pm.acc % n ? accC : sc.ink) : (i === Pm.acc % n ? accC : sc.fg), plain: plate, mi: miAt(env, ts[i]), noHold: !done };
+        color: plate ? onCol(sc, i === Pm.acc % n ? accC : sc.ink) : (i === Pm.acc % n ? accC : sc.fg), plain: plate, mi: miAt(env, from), noHold: !done };
       bb = UB(bb, J.mainDraw(env, it));
     }
     return bb;

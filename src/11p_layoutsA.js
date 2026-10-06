@@ -44,6 +44,7 @@ function segBounds(t) {
   return out;
 }
 function split2(word, force) {
+  if (J.isChineseText(word)) return J.semanticSplit(word);
   const chars = [...word], n = chars.length, sb = segBounds(word);
   let best = Math.max(1, Math.floor(n / 2)), bs = -1e9;
   for (let c = 1; c < n; c++) {
@@ -1039,7 +1040,7 @@ reg('splitScreen', {
     const size = Math.min(J.fitSize(text, p.font, W * 0.86, H * (p.split === 'h' ? 0.36 : 0.42), o), u * 0.3);
     const m = meas(text, p.font, size, o);
     const cy = p.split === 'h' ? H / 2 + (m.h > size * 1.5 ? 0 : size * 0.04) : H / 2;
-    const it = () => ({ text, font: p.font, size, x: W / 2, y: cy, track: 0.02, lead: 1.08 });
+    const it = () => ({ text, font: p.font, size, x: W / 2, y: cy, track: 0.02, lead: 1.08, lyricOffset: 0 });
     // labels on each half
     const la = tin(env, 0.25, 0.4, E.outCubic) * tout(env), ls = smallSize(env) * 0.9;
     let bb;
@@ -1696,7 +1697,7 @@ reg('searchBar', {
     }
     // suggestions
     const rom = hasLatin(text) ? null : J.romaji(strip(text));
-    const rows = [text + ' lyrics', env.cut.lineText && strip(env.cut.lineText) !== strip(text) ? env.cut.lineText : text + ' meaning', rom ? rom.toLowerCase() : text + ' mv', text + ' cover'].slice(0, p.sugg);
+    const rows = J.searchSuggestions(env, [text + ' lyrics', env.cut.lineText && strip(env.cut.lineText) !== strip(text) ? env.cut.lineText : text + ' meaning', rom ? rom.toLowerCase() : text + ' mv', text + ' cover']).slice(0, p.sugg);
     const rs = ts * 0.52, rh = rs * 2.4, py = by + bh / 2 + rs * 0.8;
     const t0 = Math.max(0.3, typed);
     const pa = tin(env, t0, 0.3, E.outCubic) * out;
@@ -1709,10 +1710,11 @@ reg('searchBar', {
         const y = py + rs * 0.3 + (i + 0.5) * rh;
         magnifier(env, W / 2 - bw / 2 + bh * 0.5, y, rs * 0.7, filled ? onCol(sc, plate) : sc.sub, 1.5, a * 0.7);
         const xt = W / 2 - bw / 2 + bh * 0.95;
+        const rowSize = Math.min(rs,J.fitSize(rt,bodyF(env),bw-bh*1.5,rh*.75,{track:.02}));
         const pre = rt.startsWith(text) ? text : '', rest = rt.slice(pre.length);
-        const pw = pre ? meas(pre, p.font, rs, { track: 0.02 }).w : 0;
-        if (pre) env.draw({ text: pre, font: p.font, size: rs, track: 0.02, align: 'left', x: xt, y, color: filled ? onCol(sc, plate) : sc.fg, alpha: a, ghost: false });
-        env.draw({ text: rest, font: bodyF(env), size: rs, track: 0.02, align: 'left', x: xt + pw, y, color: filled ? onCol(sc, plate) : sc.sub, alpha: a * (filled ? 0.65 : 1), ghost: false });
+        const pw = pre ? meas(pre, p.font, rowSize, { track: 0.02 }).w : 0;
+        if (pre) env.draw({ textRole: 'template', lyric: false, text: pre, font: p.font, size: rowSize, track: 0.02, align: 'left', x: xt, y, color: filled ? onCol(sc, plate) : sc.fg, alpha: a, ghost: false });
+        env.draw({ textRole: 'template', lyric: false, text: rest, font: bodyF(env), size: rowSize, track: 0.02, align: 'left', x: xt + pw, y, color: filled ? onCol(sc, plate) : sc.sub, alpha: a * (filled ? 0.65 : 1), ghost: false });
       });
     }
     return bb || box(W / 2 - bw / 2, by - bh / 2, W / 2 + bw / 2, by + bh / 2);

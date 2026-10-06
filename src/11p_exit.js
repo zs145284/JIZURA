@@ -63,8 +63,7 @@ function merged(fns) {
 /* push a glyph fn, folding the item's earlier fns into one full-field function */
 function addC(it, fn) {
   if (!it.charFns) it.charFns = [];
-  const prev = it.charFns.splice(0); prev.push(fn);
-  it.charFns.push(merged(prev));
+  it.charFns.push(fn);
 }
 function chainPost(it, fn) { const p0 = it.post; it.post = (env, it2, bb) => { if (p0) p0(env, it2, bb); fn(env, it2, bb); }; }
 function chainPre(it, fn) { const p0 = it.pre; it.pre = (env, it2) => { if (p0) p0(env, it2); fn(env, it2); }; }
