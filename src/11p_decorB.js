@@ -311,7 +311,7 @@ DEF.kamon = {
     });
     env.circle(cx, cy, 2.2 * u, ACC(env), null, 0, a * inE(env, 0.3, 0.5), false);
     const le = inE(env, 0.4, 0.45, E.outCubic);
-    label(env, KAMON[kind], cx, cy + R + fs * 1.35, { font: serifF(env), size: fs, align: 'center', track: 0.32, color: sc.sub, alpha: a * le });
+    label(env, J.effectCopy(env, KAMON[kind], ['三旋纹', '七宝纹', '梅花纹', '交环纹', '三环纹'][kind], ['三旋紋', '七寶紋', '梅花紋', '交環紋', '三環紋'][kind]), cx, cy + R + fs * 1.35, { font: serifF(env), size: fs, align: 'center', track: 0.32, color: sc.sub, alpha: a * le });
   },
 };
 
@@ -1381,7 +1381,7 @@ DEF.indexTabs = {
     }
     if (!pick) return;
     const { ed, vertE, mid } = pick, cur = ((env.cut.line | 0) % n + n) % n;
-    const labs = [['01', '02', '03', '04', '05'], ['あ', 'か', 'さ', 'た', 'な'], ['A', 'B', 'C', 'D', 'E']][(P.v | 0) % 3];
+    const labs = J.effectCopy(env, [['01', '02', '03', '04', '05'], ['あ', 'か', 'さ', 'た', 'な'], ['A', 'B', 'C', 'D', 'E']][(P.v | 0) % 3], [['01', '02', '03', '04', '05'], ['一', '二', '三', '四', '五'], ['A', 'B', 'C', 'D', 'E']][(P.v | 0) % 3]);
     for (let i = 0; i < n; i++) {
       const q = E.outBack(J.clamp((lt - i * 0.06) / 0.35), 1.3); if (q <= 0) continue;
       const isC = i === cur, d = (tw + (isC ? 16 * u : 0)) * q, along = mid - span / 2 + i * (th + g);
@@ -1580,7 +1580,7 @@ DEF.moonPhases = {
     segs(env, [[sp.x, cy + r * 1.8, sp.x + w * inE(env, 0.5, 0.1), cy + r * 1.8]], sc.sub, Math.max(1, u), 0.5 * a);
     segs(env, [[hx, cy + r * 1.8 - 3 * u, hx, cy + r * 1.8 + 3 * u]], ac, Math.max(1, 1.4 * u), a);
     const done = J.clamp((env.lt - 0.9) / 0.3);
-    label(env, MOON_NAMES[Math.round(sel)], hx, cy + r * 1.8 + fs * 1.1, { font: serifF(env), size: fs, align: 'center', color: sc.fg, alpha: a * (0.5 + 0.5 * done), track: 0.2 });
+    label(env, J.effectCopy(env, MOON_NAMES[Math.round(sel)], ['新月', '蛾眉月', '上弦月', '盈凸月', '满月', '亏凸月', '下弦月', '残月'][Math.round(sel)], ['新月', '蛾眉月', '上弦月', '盈凸月', '滿月', '虧凸月', '下弦月', '殘月'][Math.round(sel)]), hx, cy + r * 1.8 + fs * 1.1, { font: serifF(env), size: fs, align: 'center', color: sc.fg, alpha: a * (0.5 + 0.5 * done), track: 0.2 });
   },
 };
 
@@ -2227,7 +2227,7 @@ DEF.toggleSwitch = {
     const bb = getBB(env, bb0), { sc } = env, u = U(env);
     const o = outE(env); if (o <= 0.003 || env.lt < 0) return;
     const n = 2 + ((P.n | 0) % 2), th = J.clamp(Math.min(env.W, env.H) * 0.034, 24 * u, 44 * u), tw = th * 1.8, rowH = th * 1.7, fs = th * 0.58;
-    const labs = TOGGLE_LABELS[(P.v | 0) % TOGGLE_LABELS.length], lw0 = Math.max(...labs.slice(0, n).map(l => textW(l, bodyF(env), fs, 0.12)));
+    const labs = J.effectCopy(env, TOGGLE_LABELS[(P.v | 0) % TOGGLE_LABELS.length], [['SHUFFLE', 'REPEAT', 'LYRICS'], ['思念', '记忆', '留恋'], ['LOVE', 'MEMORY', 'REPLAY'], ['声音', '光', '夜']][(P.v | 0) % TOGGLE_LABELS.length], [['SHUFFLE', 'REPEAT', 'LYRICS'], ['思念', '記憶', '留戀'], ['LOVE', 'MEMORY', 'REPLAY'], ['聲音', '光', '夜']][(P.v | 0) % TOGGLE_LABELS.length]), lw0 = Math.max(...labs.slice(0, n).map(l => textW(l, bodyF(env), fs, 0.12)));
     const w = lw0 + 16 * u + tw, h = n * rowH;
     const sp = spot(env, bb, w, h, P, 24 * u), a = o * (sp.ok ? 1 : 0.35), ac = ACC(env), knobC = J.lum(ac) > 0.6 ? '#000000' : sc.bg;
     for (let i = 0; i < n; i++) {
@@ -2269,7 +2269,7 @@ DEF.notifBell = {
       env.circle(bx, by, br + 2 * u, null, sc.bg, 2 * u, a, false);
       label(env, cnt >= 9 ? '9+' : String(cnt), bx, by, { size: br * 1.15, font: dispF(env), align: 'center', color: J.lum(ac) > 0.6 ? '#000000' : sc.bg, alpha: a, track: 0 });
     }
-    label(env, `通知 ${pad2(cnt)}件`, cx, cy + S * 0.72 + fs * 0.8, { size: fs, font: bodyF(env), align: 'center', alpha: a * inE(env, 0.3, 0.3), track: 0.1 });
+    label(env, J.effectCopy(env, `通知 ${pad2(cnt)}件`, `通知 ${pad2(cnt)}条`, `通知 ${pad2(cnt)}條`), cx, cy + S * 0.72 + fs * 0.8, { size: fs, font: bodyF(env), align: 'center', alpha: a * inE(env, 0.3, 0.3), track: 0.1 });
   },
 };
 

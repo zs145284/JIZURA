@@ -49,6 +49,14 @@ J.resolveLang = (project) => {
   return J.detectLang(((project && project.lyrics) || '') + ' ' + ((project && project.title) || ''));
 };
 
+// Only effect-authored labels and glyph pools belong here. Lyrics and project metadata are source text.
+J.effectCopy = (env, native, simplified = '', traditional = simplified) => {
+  const lang = env.plan?.lang || J.lang;
+  if (lang === 'zh-Hans') return simplified;
+  if (lang === 'zh-Hant') return traditional;
+  return native;
+};
+
 /* per-language faces: key → [family, weight, Google Fonts spec]; keys left out keep their Japanese face
    (with the language's fallback in front of the Japanese one, so missing glyphs never land in a Japanese face) */
 const F = (family, weight, gf) => ({ family, weight, gf });

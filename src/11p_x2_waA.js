@@ -333,7 +333,7 @@ reg('wzBanzuke', {
       g.r(x0, y0, pw, ph, C.fill);
       g.rs(x0 + bd, y0 + bd, pw - bd * 2, ph - bd * 2, 0, C.text, bd * 0.35);
       g.r(x0 + bd * 2, by0 - lw * 1.5, ux * inE(env, 0.5, 0.1), lw * 3, C.text);
-      g.t('第' + kanjiNum(no) + '番', cx, y0 + bd * 1.6 + hd / 2, { size: hd * 0.5, color: C.text, track: 0.5, font: Pm.font });
+      g.t(J.effectCopy(env, '第' + kanjiNum(no) + '番', '第' + kanjiNum(no) + '段'), cx, y0 + bd * 1.6 + hd / 2, { size: hd * 0.5, color: C.text, track: 0.5, font: Pm.font });
       let bb = null, xr = x0 + pw - bd * 2;
       for (let i = 0; i < T; i++) {
         const cw = ux * ws[i] / sum, xc = xr - cw / 2, ei = inE(env, 0.45, 0.1 + i * 0.05);

@@ -744,7 +744,7 @@ reg('tyStatCount', {
     if (e > 0) {
       env.draw({ text: pad2(cnt), font: Pm.nf, size: ns, align: 'left', x: nx, y: ny, color: Pm.acc ? accentOn(sc) : sc.fg, alpha: e, ghost: false });
       const y2 = ny + ns * 0.62;
-      label(env, latin ? 'CHARACTERS' : '文字 / CHARACTERS', nx, y2, { alpha: e, size: ls, font: latin ? monoF(env) : bodyF(env) });
+      label(env, latin ? 'CHARACTERS' : J.effectCopy(env, '文字 / CHARACTERS', '文字 / CHARACTERS'), nx, y2, { alpha: e, size: ls, font: latin ? monoF(env) : bodyF(env) });
       label(env, `LINE ${pad2((cut.line | 0) + 1)}  ─  ${J.fmtTime(cut.start)}`, nx, y2 + ls * 1.8, { alpha: e * 0.8, size: ls * 0.85 });
     }
     return bb;
@@ -873,7 +873,7 @@ reg('tySquare', {
         env.line([[xa, y0 - g], [J.lerp(xa, xb, e), y0 - g]], sc.fg, Math.max(2, lw * 2.4), 0.9, false);
         env.line([[xb, y0 + rows * cell + g], [J.lerp(xb, xa, e), y0 + rows * cell + g]], sc.sub, lw, 0.8, false);
         label(env, `${cols}×${rows}`, xb, y0 + rows * cell + g + ls * 1.1, { align: 'right', alpha: e, size: ls * 0.9 });
-        label(env, tate ? '縦組' : 'YOKO', xa, y0 + rows * cell + g + ls * 1.1, { alpha: e * 0.8, size: ls * 0.9, font: tate ? bodyF(env) : monoF(env) });
+        label(env, tate ? J.effectCopy(env, '縦組', '竖排', '直排') : J.effectCopy(env, 'YOKO', '横排', '橫排'), xa, y0 + rows * cell + g + ls * 1.1, { alpha: e * 0.8, size: ls * 0.9, font: tate ? bodyF(env) : monoF(env) });
       }
     }
     return bb;

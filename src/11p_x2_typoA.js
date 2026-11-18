@@ -353,7 +353,7 @@ regL('tzTrackClose', {
     if (la > 0) {
       const y = H / 2 + ((L - 1) / 2) * size * leadK + size * 0.68 + ls * 1.7;
       const latin = isLatinT(txt) || !Pm.jp;
-      label(env, `${latin ? 'TRACKING' : '字送り'}  +${String(Math.max(0, val)).padStart(3, '0')}`, W / 2, y, { alpha: la, align: 'center', font: latin ? monoF(env) : bodyF(env), size: ls * 0.9 });
+      label(env, `${latin ? 'TRACKING' : J.effectCopy(env, '字送り', '字距')}  +${String(Math.max(0, val)).padStart(3, '0')}`, W / 2, y, { alpha: la, align: 'center', font: latin ? monoF(env) : bodyF(env), size: ls * 0.9 });
     }
     return bb;
   },
@@ -634,7 +634,7 @@ regL('tzWideOne', {
         env.line([[xa, yd], [xb, yd]], sc.sub, lw, 0.8 * a, false);
         env.line([[xa, yd - t], [xa, yd + t]], sc.sub, lw, 0.8 * a, false); env.line([[xb, yd - t], [xb, yd + t]], sc.sub, lw, 0.8 * a, false);
         const latin = isLatinT(txt);
-        if (li === L - 1 || size * (leadK - 1) > ls * 2.4) label(env, `${latin ? 'WIDTH' : '平体'} ${Math.round(sx * 100)}%`, (xa + xb) / 2, yd + ls * 1.1, { alpha: a, size: ls, align: 'center', font: latin ? monoF(env) : bodyF(env) });
+        if (li === L - 1 || size * (leadK - 1) > ls * 2.4) label(env, `${latin ? 'WIDTH' : J.effectCopy(env, '平体', '字宽', '字寬')} ${Math.round(sx * 100)}%`, (xa + xb) / 2, yd + ls * 1.1, { alpha: a, size: ls, align: 'center', font: latin ? monoF(env) : bodyF(env) });
       }
     });
     return bb;

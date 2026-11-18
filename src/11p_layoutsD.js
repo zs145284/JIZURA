@@ -1707,7 +1707,7 @@ reg('crossword', {
       const cxl = below ? gx : gx + gw + W * 0.035, cyl = below ? gy + gh + fs * 1.6 : gy + fs;
       const a = tin(env, 0.35, 0.4, E.outCubic) * out;
       const n1 = num.get(key(rowsW[0], c0[0])) || 1;
-      const lines = [['ヨコのカギ', sc.accent, monoF(env)], [n1 + '  ' + (cut.note || romajiOf(env) || '(' + n + ')'), sc.fg, bodyF(env)], ['タテのカギ', sc.accent, monoF(env)], [(num.size > 3 ? 3 : 2) + '  ─', sc.sub, bodyF(env)]];
+      const lines = [[J.effectCopy(env, 'ヨコのカギ', '横向提示', '橫向提示'), sc.accent, monoF(env)], [n1 + '  ' + (cut.note || romajiOf(env) || '(' + n + ')'), sc.fg, bodyF(env)], [J.effectCopy(env, 'タテのカギ', '纵向提示', '縱向提示'), sc.accent, monoF(env)], [(num.size > 3 ? 3 : 2) + '  ─', sc.sub, bodyF(env)]];
       lines.forEach(([t, col, f], i) => {
         const tt = t.length > 22 ? t.slice(0, 21) + '…' : t;
         const yy = below ? cyl + (i % 2) * fs * 1.7 : cyl + i * fs * 1.9 + (i >= 2 ? fs * 0.8 : 0), xx = below && i >= 2 ? cxl + gw * 0.55 : cxl;

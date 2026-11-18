@@ -1345,6 +1345,14 @@ J.resolveLang = (project) => {
   return J.detectLang(((project && project.lyrics) || '') + ' ' + ((project && project.title) || ''));
 };
 
+// Only effect-authored labels and glyph pools belong here. Lyrics and project metadata are source text.
+J.effectCopy = (env, native, simplified = '', traditional = simplified) => {
+  const lang = env.plan?.lang || J.lang;
+  if (lang === 'zh-Hans') return simplified;
+  if (lang === 'zh-Hant') return traditional;
+  return native;
+};
+
 /* per-language faces: key → [family, weight, Google Fonts spec]; keys left out keep their Japanese face
    (with the language's fallback in front of the Japanese one, so missing glyphs never land in a Japanese face) */
 const F = (family, weight, gf) => ({ family, weight, gf });
@@ -9557,7 +9565,7 @@ DEF.kamon = {
     });
     env.circle(cx, cy, 2.2 * u, ACC(env), null, 0, a * inE(env, 0.3, 0.5), false);
     const le = inE(env, 0.4, 0.45, E.outCubic);
-    label(env, KAMON[kind], cx, cy + R + fs * 1.35, { font: serifF(env), size: fs, align: 'center', track: 0.32, color: sc.sub, alpha: a * le });
+    label(env, J.effectCopy(env, KAMON[kind], ['三旋纹', '七宝纹', '梅花纹', '交环纹', '三环纹'][kind], ['三旋紋', '七寶紋', '梅花紋', '交環紋', '三環紋'][kind]), cx, cy + R + fs * 1.35, { font: serifF(env), size: fs, align: 'center', track: 0.32, color: sc.sub, alpha: a * le });
   },
 };
 
@@ -10627,7 +10635,7 @@ DEF.indexTabs = {
     }
     if (!pick) return;
     const { ed, vertE, mid } = pick, cur = ((env.cut.line | 0) % n + n) % n;
-    const labs = [['01', '02', '03', '04', '05'], ['あ', 'か', 'さ', 'た', 'な'], ['A', 'B', 'C', 'D', 'E']][(P.v | 0) % 3];
+    const labs = J.effectCopy(env, [['01', '02', '03', '04', '05'], ['あ', 'か', 'さ', 'た', 'な'], ['A', 'B', 'C', 'D', 'E']][(P.v | 0) % 3], [['01', '02', '03', '04', '05'], ['一', '二', '三', '四', '五'], ['A', 'B', 'C', 'D', 'E']][(P.v | 0) % 3]);
     for (let i = 0; i < n; i++) {
       const q = E.outBack(J.clamp((lt - i * 0.06) / 0.35), 1.3); if (q <= 0) continue;
       const isC = i === cur, d = (tw + (isC ? 16 * u : 0)) * q, along = mid - span / 2 + i * (th + g);
@@ -10826,7 +10834,7 @@ DEF.moonPhases = {
     segs(env, [[sp.x, cy + r * 1.8, sp.x + w * inE(env, 0.5, 0.1), cy + r * 1.8]], sc.sub, Math.max(1, u), 0.5 * a);
     segs(env, [[hx, cy + r * 1.8 - 3 * u, hx, cy + r * 1.8 + 3 * u]], ac, Math.max(1, 1.4 * u), a);
     const done = J.clamp((env.lt - 0.9) / 0.3);
-    label(env, MOON_NAMES[Math.round(sel)], hx, cy + r * 1.8 + fs * 1.1, { font: serifF(env), size: fs, align: 'center', color: sc.fg, alpha: a * (0.5 + 0.5 * done), track: 0.2 });
+    label(env, J.effectCopy(env, MOON_NAMES[Math.round(sel)], ['新月', '蛾眉月', '上弦月', '盈凸月', '满月', '亏凸月', '下弦月', '残月'][Math.round(sel)], ['新月', '蛾眉月', '上弦月', '盈凸月', '滿月', '虧凸月', '下弦月', '殘月'][Math.round(sel)]), hx, cy + r * 1.8 + fs * 1.1, { font: serifF(env), size: fs, align: 'center', color: sc.fg, alpha: a * (0.5 + 0.5 * done), track: 0.2 });
   },
 };
 
@@ -11473,7 +11481,7 @@ DEF.toggleSwitch = {
     const bb = getBB(env, bb0), { sc } = env, u = U(env);
     const o = outE(env); if (o <= 0.003 || env.lt < 0) return;
     const n = 2 + ((P.n | 0) % 2), th = J.clamp(Math.min(env.W, env.H) * 0.034, 24 * u, 44 * u), tw = th * 1.8, rowH = th * 1.7, fs = th * 0.58;
-    const labs = TOGGLE_LABELS[(P.v | 0) % TOGGLE_LABELS.length], lw0 = Math.max(...labs.slice(0, n).map(l => textW(l, bodyF(env), fs, 0.12)));
+    const labs = J.effectCopy(env, TOGGLE_LABELS[(P.v | 0) % TOGGLE_LABELS.length], [['SHUFFLE', 'REPEAT', 'LYRICS'], ['思念', '记忆', '留恋'], ['LOVE', 'MEMORY', 'REPLAY'], ['声音', '光', '夜']][(P.v | 0) % TOGGLE_LABELS.length], [['SHUFFLE', 'REPEAT', 'LYRICS'], ['思念', '記憶', '留戀'], ['LOVE', 'MEMORY', 'REPLAY'], ['聲音', '光', '夜']][(P.v | 0) % TOGGLE_LABELS.length]), lw0 = Math.max(...labs.slice(0, n).map(l => textW(l, bodyF(env), fs, 0.12)));
     const w = lw0 + 16 * u + tw, h = n * rowH;
     const sp = spot(env, bb, w, h, P, 24 * u), a = o * (sp.ok ? 1 : 0.35), ac = ACC(env), knobC = J.lum(ac) > 0.6 ? '#000000' : sc.bg;
     for (let i = 0; i < n; i++) {
@@ -11515,7 +11523,7 @@ DEF.notifBell = {
       env.circle(bx, by, br + 2 * u, null, sc.bg, 2 * u, a, false);
       label(env, cnt >= 9 ? '9+' : String(cnt), bx, by, { size: br * 1.15, font: dispF(env), align: 'center', color: J.lum(ac) > 0.6 ? '#000000' : sc.bg, alpha: a, track: 0 });
     }
-    label(env, `通知 ${pad2(cnt)}件`, cx, cy + S * 0.72 + fs * 0.8, { size: fs, font: bodyF(env), align: 'center', alpha: a * inE(env, 0.3, 0.3), track: 0.1 });
+    label(env, J.effectCopy(env, `通知 ${pad2(cnt)}件`, `通知 ${pad2(cnt)}条`, `通知 ${pad2(cnt)}條`), cx, cy + S * 0.72 + fs * 0.8, { size: fs, font: bodyF(env), align: 'center', alpha: a * inE(env, 0.3, 0.3), track: 0.1 });
   },
 };
 
@@ -18193,7 +18201,8 @@ reg('hrOuija', {
     const bw = Math.min(W * 0.88, H * (port ? 0.62 : 1.2)), bh = bw * (port ? 0.72 : 0.52), bx = W / 2, by = port ? H * 0.34 : H * 0.36;
     const plate = J.mix(sc.bg, sc.fg, isDark(sc.bg) ? 0.07 : 0.06);
     env.rrect(bx - bw / 2, by - bh / 2, bw, bh, bh * 0.14, plate, inA * out, false, J.mix(sc.bg, sc.sub, 0.6), lw);
-    const rowsSrc = Pm.latin ? [ABC.slice(0, 13), ABC.slice(13), '1234567890'] : [KANA.slice(0, 16), KANA.slice(16, 32), KANA.slice(32)];
+    const boardGlyphs = J.effectCopy(env, KANA, J.POOLS['zh-Hans'].hira, J.POOLS['zh-Hant'].hira).slice(0, KANA.length);
+    const rowsSrc = Pm.latin ? [ABC.slice(0, 13), ABC.slice(13), '1234567890'] : [boardGlyphs.slice(0, 16), boardGlyphs.slice(16, 32), boardGlyphs.slice(32)];
     const cells = [], bf = bh * (Pm.latin ? 0.1 : 0.085);
     rowsSrc.forEach((row, r) => {
       const arr = [...row], n = arr.length, R = bw * (0.64 - r * 0.17), cy = by + bh * (0.52 + r * 0.04), span = (r ? 96 : 112) * (port ? 0.95 : 1);
@@ -24668,8 +24677,8 @@ J.register('layout', 'credits', {
     const vals = [], seen = new Set();
     const add = (r, v) => { v = String(v || '').trim(); if (v && !seen.has(v)) { seen.add(v); vals.push([r, v]); } };
     const line = cut.lineText || cut.text;
-    add('詞', line);
-    J.chunkText(line).forEach((c, i) => add(i === 0 ? '語' : '', c));
+    add(J.effectCopy(env, '詞', '词', '詞'), line);
+    J.chunkText(line).forEach((c, i) => add(i === 0 ? J.effectCopy(env, '語', '语', '語') : '', c));
     (J.segments(line) || []).forEach(g => { if (J.glyphCount(g) >= 2) add('', g); });
     if (rom) add('READING', rom);
     if (cut.note) add('NOTE', cut.note);
@@ -26073,7 +26082,7 @@ reg('headlineDeck', {
     // kicker
     const ka = tin(env, 0.05, 0.4) * out;
     const ky = hy - m.h / 2 - ls * 1.1;
-    const kt = p.kicker + '  ' + lineNo(env);
+    const kt = J.effectCopy(env, p.kicker, ({'特集':'专题','連載':'连载'})[p.kicker] || p.kicker, ({'特集':'專題','連載':'連載'})[p.kicker] || p.kicker) + '  ' + lineNo(env);
     const km = meas(kt, monoF(env), ls, { track: 0.2 });
     if (ka > 0.01) {
       env.rect(mx, ky - ls * 0.8, (km.w + ls * 1.2) * ka, ls * 1.6, sc.accent, out, false);
@@ -26146,7 +26155,7 @@ reg('contents', {
       const size = Math.min(colW * 0.7, ...chunks.map(c => (hBot - hTop) * 0.62 / Math.max(1, J.glyphCount(c)) / 1.03));
       // title column
       const ta = tin(env, 0, 0.4, E.outCubic) * out;
-      env.draw({ text: '目次', font: serifF(env), size: colW * 0.5, vertical: true, align: 'left', track: 0.6, x: x0 - colW * 0.45, y: hTop, color: sc.fg, alpha: ta, ghost: false });
+      env.draw({ text: J.effectCopy(env, '目次', '目录', '目錄'), font: serifF(env), size: colW * 0.5, vertical: true, align: 'left', track: 0.6, x: x0 - colW * 0.45, y: hTop, color: sc.fg, alpha: ta, ghost: false });
       const le = tin(env, 0.05, 0.6, E.inOutCubic) * out;
       env.line([[x0 - colW * 1.05, hTop], [x0 - colW * 1.05, hTop + (hBot - hTop) * le]], sc.fg, lw, 1, false);
       let ci = 0;
@@ -26192,7 +26201,7 @@ reg('contents', {
     // header
     const ha = tin(env, 0, 0.4, E.outCubic) * out;
     const hy = y0 - ls * 2.8;
-    env.draw({ text: '目次', font: serifF(env), size: ls * 2.1, track: 0.5, align: 'left', x: bx, y: hy - ls * 0.2, color: sc.fg, alpha: ha, ghost: false });
+    env.draw({ text: J.effectCopy(env, '目次', '目录', '目錄'), font: serifF(env), size: ls * 2.1, track: 0.5, align: 'left', x: bx, y: hy - ls * 0.2, color: sc.fg, alpha: ha, ghost: false });
     env.draw({ text: 'CONTENTS', font: monoF(env), size: ls * 0.85, track: 0.3, align: 'right', x: bx + bw, y: hy, color: sc.sub, alpha: ha, ghost: false });
     const le = tin(env, 0.05, 0.6, E.inOutCubic) * out;
     env.line([[bx, hy + ls * 1.4], [bx + bw * le, hy + ls * 1.4]], sc.fg, lw * 1.6, 1, false);
@@ -26382,7 +26391,7 @@ reg('proofread', {
         }
       }
       // leader to the margin + handwritten note
-      const note = PROOF_NOTES[mk] || 'ママ';
+      const note = J.effectCopy(env, PROOF_NOTES[mk] || 'ママ', { circle: '保留', wave: '强调', box: '粗体', dots: '保留' }[mk] || '保留', { circle: '保留', wave: '強調', box: '粗體', dots: '保留' }[mk] || '保留');
       const le = E.outCubic(J.clamp(e * 1.4 - 0.4));
       if (le <= 0 || !anchor) return;
       let nx, ny;
@@ -26406,7 +26415,7 @@ reg('proofread', {
         const w2 = S * 1.25, h2 = S * 0.72;
         env.rrect(-w2 / 2, -h2 / 2, w2, h2, S * 0.08, null, a * 0.9, false, pen, Math.max(2, S * 0.05));
         env.rrect(-w2 / 2 + S * 0.07, -h2 / 2 + S * 0.07, w2 - S * 0.14, h2 - S * 0.14, S * 0.05, null, a * 0.9, false, pen, Math.max(1, S * 0.02));
-        env.draw({ text: '校了', font: serifF(env), size: S * 0.36, track: 0.2, x: 0, y: -S * 0.06, color: pen, alpha: a * 0.9, ghost: false });
+        env.draw({ text: J.effectCopy(env, '校了', '定稿'), font: serifF(env), size: S * 0.36, track: 0.2, x: 0, y: -S * 0.06, color: pen, alpha: a * 0.9, ghost: false });
         env.draw({ text: J.fmtTime(env.cut.start), font: monoF(env), size: S * 0.12, x: 0, y: S * 0.2, color: pen, alpha: a * 0.9, ghost: false });
         ctx.restore();
       }
@@ -26709,7 +26718,7 @@ reg('dictionary', {
     const ca = tin(env, 0, 0.5, E.outCubic) * out;
     const top = hy - m.h / 2 - size * 0.55 - ls * 1.6;
     const deck = deckCopy(env);
-    const defs = [deck || ('歌詞 第' + kanjiNum(lineN(env)) + '行。'), J.fmtTime(env.cut.start) + ' ─ ' + J.fmtTime(env.cut.end) + '　' + J.glyphCount(t0) + (hasLatin(t0) ? ' chars' : '字')];
+    const defs = [deck || J.effectCopy(env, '歌詞 第' + kanjiNum(lineN(env)) + '行。', '歌词 第' + kanjiNum(lineN(env)) + '行。', '歌詞 第' + kanjiNum(lineN(env)) + '行。'), J.fmtTime(env.cut.start) + ' ─ ' + J.fmtTime(env.cut.end) + '　' + J.glyphCount(t0) + (hasLatin(t0) ? ' chars' : '字')];
     const dfs = J.clamp(u * 0.028, 14, 36);
     const defTop = hy + m.h / 2 + size * 0.45;
     const defBot = defTop + defs.length * dfs * 1.7 + dfs;
@@ -26748,7 +26757,7 @@ reg('dictionary', {
       const pw = ls * (p.pos.length * 1.25 + 0.9), px = Math.min(hx + lastW + size * 0.3, W - mx - pw);
       const pyy = ly + (hx + lastW + size * 0.3 > W - mx - pw ? size * 0.75 : 0);
       env.rrect(px, pyy - ls * 0.85, pw, ls * 1.7, ls * 0.3, null, J.clamp(pa), false, sc.fg, lw * 1.4);
-      env.draw({ text: p.pos, font: serifF(env), size: ls * 1.1, x: px + pw / 2, y: pyy, color: sc.fg, alpha: J.clamp(pa), ghost: false });
+      env.draw({ text: J.effectCopy(env, p.pos, ({'名':'名词','連語':'词组','感':'叹词','形動':'形容词','副':'副词'})[p.pos], ({'名':'名詞','連語':'詞組','感':'嘆詞','形動':'形容詞','副':'副詞'})[p.pos]), font: serifF(env), size: ls * 1.1, x: px + pw / 2, y: pyy, color: sc.fg, alpha: J.clamp(pa), ghost: false });
     }
     // definitions
     defs.forEach((d, i) => {
@@ -27002,7 +27011,7 @@ reg('newspaper', {
     const mX = pw - m - mw, mY = m;
     env.rect(mX, mY, mw, mh, hl, a, false);
     env.draw({ textRole: 'template', lyric: false, text: mast, font: p.font, size: Math.min(mw * 0.62, mh * 0.9 / [...mast].length), vertical: true, x: mX + mw / 2, y: mY + mh / 2, track: 0.05, color: onCol(sc, hl), alpha: a, ghost: false });
-    env.draw({ text: '第' + p.issue + '号', font: bodyF(env), size: ls * 0.7, x: mX + mw / 2, y: mY + mh + ls * 0.8, color: tx, alpha: a * 0.8, ghost: false });
+    env.draw({ text: J.effectCopy(env, '第' + p.issue + '号', '第' + p.issue + '期'), font: bodyF(env), size: ls * 0.7, x: mX + mw / 2, y: mY + mh + ls * 0.8, color: tx, alpha: a * 0.8, ghost: false });
     env.draw({ text: J.fmtTime(env.cut.start), font: monoF(env), size: ls * 0.7, x: mX + mw / 2, y: mY + mh + ls * 1.8, color: tx, alpha: a * 0.8, ghost: false });
     // tiers (段) of greeked vertical copy
     const bodyX0 = m, bodyX1 = mX - m * 0.6;
@@ -27537,7 +27546,7 @@ reg('postcard', {
       if (i === 3) env.line([[bx - gap * 2.2, zy + bs * 0.62], [bx - gap * 0.6, zy + bs * 0.62]], red, Math.max(1.2, bs * 0.06), za, false);
       env.draw({ text: p.zip[i], font: p.font, size: bs * 0.8, x: bx + bs / 2, y: zy + bs * 0.66, color: C.text, alpha: za * 0.9, ghost: false });
     }
-    env.draw({ text: vertCard ? '郵便はがき' : 'POST CARD', font: vertCard ? serifF(env) : monoF(env), size: ls * (vertCard ? 1.2 : 0.9), track: 0.5, x: vertCard ? 0 : x0 + cw * 0.46, y: vertCard ? y0 + m + sth + ls * 0.9 : y0 + m * 0.75, color: C.text, alpha: a * 0.75, ghost: false });
+    env.draw({ text: vertCard ? J.effectCopy(env, '郵便はがき', '明信片') : 'POST CARD', font: vertCard ? serifF(env) : monoF(env), size: ls * (vertCard ? 1.2 : 0.9), track: 0.5, x: vertCard ? 0 : x0 + cw * 0.46, y: vertCard ? y0 + m + sth + ls * 0.9 : y0 + m * 0.75, color: C.text, alpha: a * 0.75, ghost: false });
     // address lines + lyric
     const t0 = env.cut.text.trim();
     let bb;
@@ -27552,7 +27561,7 @@ reg('postcard', {
       const ty = top + Math.max(0, (bot - top) - mm.h - size * 1.3) * 0.3;
       bb = J.mainDraw(env, { text: fb.text, font: p.font, size, x: lx, y: ty, vertical: true, align: 'left', lead: 1.3, track: 0.06, color: C.text, noHold: plateHold(env), mi: miAt(env, 0.3) });
       const lastLen = J.glyphCount(fb.text.split('\n').pop());
-      env.draw({ text: '様', font: p.font, size: size * 0.7, x: lx - (fb.lines - 1) * size * 0.65, y: ty + lastLen * size * 1.06 + size * 0.75, color: C.text, alpha: la, ghost: false });
+      env.draw({ text: J.effectCopy(env, '様', '收'), font: p.font, size: size * 0.7, x: lx - (fb.lines - 1) * size * 0.65, y: ty + lastLen * size * 1.06 + size * 0.75, color: C.text, alpha: la, ghost: false });
     } else {
       const top = y0 + m + sth + ls * 1.8, bot = y0 + ch - m;
       const lines = 4, lh = (bot - top) / lines;
@@ -28222,7 +28231,7 @@ reg('omikuji', {
     env.line([[x0 + m, y0 + m], [x0 + sw - m, y0 + m], [x0 + sw - m, y0 + sh - m], [x0 + m, y0 + sh - m], [x0 + m, y0 + m]], red, lw * 1.8, a, false);
     env.line([[x0 + m * 1.35, y0 + m * 1.35], [x0 + sw - m * 1.35, y0 + m * 1.35], [x0 + sw - m * 1.35, y0 + sh - m * 1.35], [x0 + m * 1.35, y0 + sh - m * 1.35], [x0 + m * 1.35, y0 + m * 1.35]], red, lw * 0.7, a, false);
     const ix0 = x0 + m * 2, iy0 = y0 + m * 2, iw = sw - m * 4, ih = sh - m * 4;
-    const no = '第' + kanjiNum(lineN(env)) + '番';
+    const no = J.effectCopy(env, '第' + kanjiNum(lineN(env)) + '番', '第' + kanjiNum(lineN(env)) + '签', '第' + kanjiNum(lineN(env)) + '籤');
     let bb;
     if (!port) {
       // columns right → left: number, rank, the poem (lyric), fortunes grid
@@ -28231,7 +28240,7 @@ reg('omikuji', {
       env.draw({ text: no, font: serifF(env), size: Math.min(colW * 0.6, ih * 0.8 / no.length), vertical: true, align: 'left', x: hx, y: iy0 + ih * 0.06, color: C.text, alpha: a, ghost: false });
       const rw = colW * 1.2, rx = hx - colW * 0.5 - rw - m * 0.4;
       env.rect(rx, iy0 + ih * 0.04, rw, ih * 0.92, red, a, false);
-      const rt = p.rank;
+      const rt = J.effectCopy(env, p.rank);
       env.draw({ text: rt, font: serifF(env), size: Math.min(rw * 0.7, ih * 0.8 / rt.length), vertical: true, x: rx + rw / 2, y: iy0 + ih / 2, track: 0.2, color: onCol(sc, red), alpha: a, ghost: false });
       const px1 = rx - m, catW = iw * 0.3;
       const pw = px1 - (ix0 + catW) - m;
@@ -28243,7 +28252,7 @@ reg('omikuji', {
       env.line([[ix0 + catW + m * 0.5, iy0], [ix0 + catW + m * 0.5, iy0 + ih]], red, lw, a, false);
       p.cats.forEach((c, i) => {
         const cx = ix0 + catW - (i % 2 + 0.5) * catW / 2, cy = iy0 + (Math.floor(i / 2)) * ih / 2;
-        env.draw({ text: c, font: serifF(env), size: ls * 1.05, vertical: true, align: 'left', x: cx + catW * 0.12, y: cy + ls * 0.8, color: red, alpha: a, ghost: false });
+        env.draw({ text: J.effectCopy(env, c), font: serifF(env), size: ls * 1.05, vertical: true, align: 'left', x: cx + catW * 0.12, y: cy + ls * 0.8, color: red, alpha: a, ghost: false });
         greek(env, cx - catW * 0.24, cy + ls * 0.8, catW * 0.28, ih / 2 - ls * 2, ls * 0.9, C.text, a * 0.35, i + 7, true);
         if (i % 2 === 0) env.line([[ix0, cy + ih / 2], [ix0 + catW, cy + ih / 2]], red, lw * 0.6, a * (i === 0 ? 1 : 0), false);
       });
@@ -28253,7 +28262,7 @@ reg('omikuji', {
       env.draw({ text: no, font: serifF(env), size: hh * 0.5, track: 0.3, x: W / 2, y: iy0 + hh * 0.45, color: C.text, alpha: a, ghost: false });
       const rw = iw * 0.4, rh = hh * 1.2;
       env.rect(W / 2 - rw / 2, iy0 + hh, rw, rh, red, a, false);
-      env.draw({ text: p.rank, font: serifF(env), size: rh * 0.62, track: 0.3, x: W / 2, y: iy0 + hh + rh / 2, color: onCol(sc, red), alpha: a, ghost: false });
+      env.draw({ text: J.effectCopy(env, p.rank), font: serifF(env), size: rh * 0.62, track: 0.3, x: W / 2, y: iy0 + hh + rh / 2, color: onCol(sc, red), alpha: a, ghost: false });
       const catH = ih * 0.2;
       const pt = iy0 + hh + rh + m, pb = iy0 + ih - catH - m;
       const fb = fitBlock(t0, p.font, iw * 0.84, pb - pt, { vertical: true, lead: 1.35, track: 0.06 }, 3);
@@ -28263,7 +28272,7 @@ reg('omikuji', {
       env.line([[ix0, pb + m * 0.5], [ix0 + iw, pb + m * 0.5]], red, lw, a, false);
       p.cats.forEach((c, i) => {
         const cw2 = iw / 4, cx = ix0 + iw - (i + 0.5) * cw2;
-        env.draw({ text: c, font: serifF(env), size: ls, vertical: true, align: 'left', x: cx + cw2 * 0.22, y: pb + m, color: red, alpha: a, ghost: false });
+        env.draw({ text: J.effectCopy(env, c), font: serifF(env), size: ls, vertical: true, align: 'left', x: cx + cw2 * 0.22, y: pb + m, color: red, alpha: a, ghost: false });
         greek(env, cx - cw2 * 0.4, pb + m, cw2 * 0.5, catH - m, ls * 0.8, C.text, a * 0.35, i + 7, true);
       });
     }
@@ -28580,7 +28589,7 @@ reg('priceTag', {
       env.rrect(x0, y0, bw, bh, bh * 0.03, tagC, a, false, J.contrast(tagC, sc.bg) < 1.4 ? J.mix(sc.fg, tagC, 0.4) : null, 1.5);
       const hdr = bh * 0.2;
       env.rect(x0, y0, bw, hdr, red, a, false);
-      env.draw({ text: 'お買い得  ·  No.' + lineNo(env), font: bodyF(env), size: hdr * 0.5, track: 0.2, align: 'left', x: x0 + bw * 0.03, y: y0 + hdr / 2, color: onCol(sc, red), alpha: a, ghost: false });
+      env.draw({ text: J.effectCopy(env, 'お買い得  ·  No.', '特惠  ·  No.', '特惠  ·  No.') + lineNo(env), font: bodyF(env), size: hdr * 0.5, track: 0.2, align: 'left', x: x0 + bw * 0.03, y: y0 + hdr / 2, color: onCol(sc, red), alpha: a, ghost: false });
       const nameW = bw * (port ? 0.9 : 0.62);
       const nTop = y0 + hdr, nBot = y0 + bh * (port ? 0.62 : 0.8);
       const fb = fitBlock(t0, p.font, nameW * 0.92, (nBot - nTop) * 0.86, { lead: 1.05 }, 2);
@@ -28590,7 +28599,7 @@ reg('priceTag', {
       const px = x0 + bw * 0.96, py = port ? y0 + bh * 0.76 : y0 + hdr + (bh - hdr) * 0.44;
       const ps = Math.min((bh - hdr) * (port ? 0.26 : 0.3), size * 0.8);
       env.draw({ text: yen(p.price), font: 'gothic_black', size: ps * J.clamp(pa), align: 'right', x: px, y: py, color: red, alpha: J.clamp(pa), ghost: false });
-      env.draw({ text: '税込', font: bodyF(env), size: ls * 0.9, align: 'right', x: px, y: py + ps * 0.62, color: tc, alpha: J.clamp(pa) * 0.8, ghost: false });
+      env.draw({ text: J.effectCopy(env, '税込', '含税', '含稅'), font: bodyF(env), size: ls * 0.9, align: 'right', x: px, y: py + ps * 0.62, color: tc, alpha: J.clamp(pa) * 0.8, ghost: false });
       // barcode
       const bx = x0 + bw * 0.04, byy = y0 + bh * 0.88;
       for (let i = 0, x = bx; i < 36 && x < bx + bw * 0.22; i++) { const w2 = bw * (0.002 + 0.004 * J.r(p.price, i, 3)); env.rect(x, byy - bh * 0.06, w2, bh * 0.09, tc, a * 0.8, false); x += w2 + bw * (0.002 + 0.003 * J.r(p.price, i, 4)); }
@@ -28823,7 +28832,7 @@ reg('karuta', {
       const ax = port ? W / 2 : W / 2 + (cw + gap) / 2, ay = port ? H / 2 - (ch + gap) / 2 : H / 2;
       const bx = port ? W / 2 : W / 2 - (cw + gap) / 2, by = port ? H / 2 + (ch + gap) / 2 : H / 2;
       // 読み札 (the verse) + 取り札 (the first glyph)
-      const r = cardAt(0, ax, ay, (a, S) => { env.draw({ text: '読', font: serifF(env), size: cw * 0.1, x: cw * 0.34, y: -ch / 2 + cw * 0.16, color: red, alpha: a, ghost: false }); return verse(a, S, false); });
+      const r = cardAt(0, ax, ay, (a, S) => { env.draw({ text: J.effectCopy(env, '読', '读', '讀'), font: serifF(env), size: cw * 0.1, x: cw * 0.34, y: -ch / 2 + cw * 0.16, color: red, alpha: a, ghost: false }); return verse(a, S, false); });
       if (r) bb = box(ax - cw / 2, ay - ch / 2, ax + cw / 2, ay + ch / 2);
       cardAt(1, bx, by, (a) => tori(a));
       return bb;
@@ -30549,7 +30558,7 @@ reg('crossword', {
       const cxl = below ? gx : gx + gw + W * 0.035, cyl = below ? gy + gh + fs * 1.6 : gy + fs;
       const a = tin(env, 0.35, 0.4, E.outCubic) * out;
       const n1 = num.get(key(rowsW[0], c0[0])) || 1;
-      const lines = [['ヨコのカギ', sc.accent, monoF(env)], [n1 + '  ' + (cut.note || romajiOf(env) || '(' + n + ')'), sc.fg, bodyF(env)], ['タテのカギ', sc.accent, monoF(env)], [(num.size > 3 ? 3 : 2) + '  ─', sc.sub, bodyF(env)]];
+      const lines = [[J.effectCopy(env, 'ヨコのカギ', '横向提示', '橫向提示'), sc.accent, monoF(env)], [n1 + '  ' + (cut.note || romajiOf(env) || '(' + n + ')'), sc.fg, bodyF(env)], [J.effectCopy(env, 'タテのカギ', '纵向提示', '縱向提示'), sc.accent, monoF(env)], [(num.size > 3 ? 3 : 2) + '  ─', sc.sub, bodyF(env)]];
       lines.forEach(([t, col, f], i) => {
         const tt = t.length > 22 ? t.slice(0, 21) + '…' : t;
         const yy = below ? cyl + (i % 2) * fs * 1.7 : cyl + i * fs * 1.9 + (i >= 2 ? fs * 0.8 : 0), xx = below && i >= 2 ? cxl + gw * 0.55 : cxl;
@@ -35324,7 +35333,7 @@ reg('tyStatCount', {
     if (e > 0) {
       env.draw({ text: pad2(cnt), font: Pm.nf, size: ns, align: 'left', x: nx, y: ny, color: Pm.acc ? accentOn(sc) : sc.fg, alpha: e, ghost: false });
       const y2 = ny + ns * 0.62;
-      label(env, latin ? 'CHARACTERS' : '文字 / CHARACTERS', nx, y2, { alpha: e, size: ls, font: latin ? monoF(env) : bodyF(env) });
+      label(env, latin ? 'CHARACTERS' : J.effectCopy(env, '文字 / CHARACTERS', '文字 / CHARACTERS'), nx, y2, { alpha: e, size: ls, font: latin ? monoF(env) : bodyF(env) });
       label(env, `LINE ${pad2((cut.line | 0) + 1)}  ─  ${J.fmtTime(cut.start)}`, nx, y2 + ls * 1.8, { alpha: e * 0.8, size: ls * 0.85 });
     }
     return bb;
@@ -35453,7 +35462,7 @@ reg('tySquare', {
         env.line([[xa, y0 - g], [J.lerp(xa, xb, e), y0 - g]], sc.fg, Math.max(2, lw * 2.4), 0.9, false);
         env.line([[xb, y0 + rows * cell + g], [J.lerp(xb, xa, e), y0 + rows * cell + g]], sc.sub, lw, 0.8, false);
         label(env, `${cols}×${rows}`, xb, y0 + rows * cell + g + ls * 1.1, { align: 'right', alpha: e, size: ls * 0.9 });
-        label(env, tate ? '縦組' : 'YOKO', xa, y0 + rows * cell + g + ls * 1.1, { alpha: e * 0.8, size: ls * 0.9, font: tate ? bodyF(env) : monoF(env) });
+        label(env, tate ? J.effectCopy(env, '縦組', '竖排', '直排') : J.effectCopy(env, 'YOKO', '横排', '橫排'), xa, y0 + rows * cell + g + ls * 1.1, { alpha: e * 0.8, size: ls * 0.9, font: tate ? bodyF(env) : monoF(env) });
       }
     }
     return bb;
@@ -39356,7 +39365,7 @@ D('xnGlyphStats', '字種の内訳', 'Glyph Breakdown', ['editorial', 'graphic',
   const g = glyphs(cutText(env)).filter(c => !(J.isPunct && J.isPunct(c))); if (!g.length) return;
   const cnt = [0, 0, 0, 0];
   for (const c of g) cnt[J.isKanji(c) ? 0 : (J.isHira(c) || J.isKata(c)) ? 1 : (J.isLatin && J.isLatin(c)) ? 2 : 3]++;
-  const names = ['漢字', 'かな', 'ABC', '他'], pal = [env.sc.fg, ACC(env), ACC2(env), SUB(env)]; let ci = 0;
+  const names = J.effectCopy(env, ['漢字', 'かな', 'ABC', '他'], ['汉字', '假名', 'ABC', '其他'], ['漢字', '假名', 'ABC', '其他']), pal = [env.sc.fg, ACC(env), ACC2(env), SUB(env)]; let ci = 0;
   const fs = FS(env) * 0.9, bf = bodyF(env), w = cl(bw(bb) * 0.6, 220 * u, 340 * u), barH = Math.max(6, 9 * u), h = fs * 1.5 + barH + fs * 1.9;
   const sp = spot(env, bb, w, h, p, 22 * u), A = o * (sp.ok ? 1 : 0.3), e = ein(t, 0.55, 0.05);
   T(env, 'GLYPHS', sp.x, sp.y + fs * 0.5, fs * 0.8, { a: A * ein(t, 0.3), tr: 0.14 });
@@ -39460,7 +39469,7 @@ D('xnVersionTags', '版数タグ', 'Version Tags', ['pop', 'graphic', 'editorial
 D('xnTooltip', 'ヒント吹き出し', 'Tooltip', ['pop', 'graphic', 'editorial'], 0.9, 'leaders', (env, bb, p, t, o, u) => {
   const { W, H } = env, m = MG(env), fs = FS(env) * 0.9, bf = bodyF(env);
   const rj = J.romaji(cutText(env).replace(/[、。！？!?,.・「」]/g, ' ').replace(/\s+/g, ' ').trim()), cj = hasCJK(cutText(env));
-  const txt = p.v % 3 === 0 ? String((env.st.fonts.display && env.st.fonts.display[0]) || 'display').replace(/_/g, ' ') : p.v % 3 === 1 ? (cj ? 'クリックして編集' : 'click to edit') : (rj ? clip(rj, 22) : cj ? 'テキストレイヤー' : 'text layer');
+  const txt = p.v % 3 === 0 ? String((env.st.fonts.display && env.st.fonts.display[0]) || 'display').replace(/_/g, ' ') : p.v % 3 === 1 ? (cj ? J.effectCopy(env, 'クリックして編集', '点击编辑', '點擊編輯') : 'click to edit') : (rj ? clip(rj, 22) : cj ? J.effectCopy(env, 'テキストレイヤー', '文本图层', '文字圖層') : 'text layer');
   const w = tw(env, txt, fs, bf) + fs * 1.6, h = fs * 2, tip = 9 * u, gap = 10 * u + bh(bb) * 0.04;
   let below = !!p.low; if (below ? bb.y1 + gap + tip + h > H - m : bb.y0 - gap - tip - h < m) below = !below;
   const ok = below ? bb.y1 + gap + tip + h <= H - m * 0.6 : bb.y0 - gap - tip - h >= m * 0.6, A = o * (ok ? 1 : 0.3);
@@ -39559,7 +39568,7 @@ D('xnAxes', 'グラフ軸', 'Chart Axes', ['editorial', 'graphic', 'calm'], 1, '
   }
   for (let i = 0; i < 3; i++) { const y = lerp(bb.y1, bb.y0, i / 2); if (y >= yy) tk.push([ox, y, ox - 6 * u, y]); }
   segs(env, tk, c, lw, o * 0.9);
-  const cj = hasCJK(cutText(env)), bf = bodyF(env), e3 = ein(t, 0.35, 0.45), tx = cj ? ['とき', 'ことば'] : ['time', 'words'], ty = cj ? ['想い', '声'] : ['feeling', 'voice'];
+  const cj = hasCJK(cutText(env)), bf = bodyF(env), e3 = ein(t, 0.35, 0.45), tx = cj ? J.effectCopy(env, ['とき', 'ことば'], ['时间', '文字'], ['時間', '文字']) : ['time', 'words'], ty = cj ? J.effectCopy(env, ['想い', '声'], ['思念', '声音'], ['思念', '聲音']) : ['feeling', 'voice'];
   if (xe - bb.x1 > 10 * u) T(env, tx[p.v % 2], xe, oy - fs * 0.9, fs, { f: bf, al: 'right', a: o * e3 * 0.9 });
   if (bb.y0 - ye > fs * 1.7) T(env, ty[p.v % 2], ox + 9 * u, ye + fs * 0.6, fs, { f: bf, a: o * e3 * 0.9 });
 }, 'front');
@@ -39670,7 +39679,7 @@ D('xnBattery', '電池残量', 'Status Icons', ['pop', 'graphic', 'glitch'], 0.7
 /* スライダー — labelled range sliders whose knobs glide to their values, with a readout each */
 const SL_LABS = [['TEMPO', 'PITCH', 'REVERB'], ['GAIN', 'PAN', 'ECHO'], ['WARMTH', 'BLUR', 'GRAIN'], ['想い', '距離', '温度'], ['きもち', 'ことば', 'おと']];
 D('xnSliders', 'スライダー', 'Sliders', ['pop', 'graphic', 'editorial'], 1, 'bars', (env, bb, p, t, o, u) => {
-  const fs = FS(env) * 0.85, bf = bodyF(env), n = Math.min(3, 1 + p.n), labs = SL_LABS[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 2.1, tr = 150 * u, nn = noNo(env);
+  const fs = FS(env) * 0.85, bf = bodyF(env), n = Math.min(3, 1 + p.n), labs = J.effectCopy(env, SL_LABS, [['TEMPO', 'PITCH', 'REVERB'], ['GAIN', 'PAN', 'ECHO'], ['WARMTH', 'BLUR', 'GRAIN'], ['思念', '距离', '温度'], ['心情', '文字', '声音']], [['TEMPO', 'PITCH', 'REVERB'], ['GAIN', 'PAN', 'ECHO'], ['WARMTH', 'BLUR', 'GRAIN'], ['思念', '距離', '溫度'], ['心情', '文字', '聲音']])[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 2.1, tr = 150 * u, nn = noNo(env);
   const lw0 = Math.max(...labs.slice(0, n).map(s => tw(env, s, fs, bf, 0.1))) + fs * 0.9, w = lw0 + tr + (nn ? 8 * u : fs * 2.2), h = n * rh;
   const sp = spot(env, bb, w, h, p, 22 * u), A = o * (sp.ok ? 1 : 0.3), ac = ACC(env);
   for (let i = 0; i < n; i++) {
@@ -39687,7 +39696,7 @@ D('xnSliders', 'スライダー', 'Sliders', ['pop', 'graphic', 'editorial'], 1,
 /* プルダウン — a select box that drops open, runs its highlight down the options, picks one and closes */
 const DD_OPTS = [['Verse', 'Chorus', 'Bridge'], ['Soft', 'Normal', 'Loud'], ['Slow', 'Mid', 'Fast'], ['きのう', 'きょう', 'あした'], ['ひとり', 'ふたり', 'みんな']];
 D('xnDropdown', 'プルダウン', 'Dropdown', ['pop', 'graphic'], 0.8, 'shapes', (env, bb, p, t, o, u) => {
-  const fs = FS(env) * 0.92, bf = bodyF(env), opts = DD_OPTS[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 1.9, sel = 1 + (J.h(p.seed, 2) % 2);
+  const fs = FS(env) * 0.92, bf = bodyF(env), opts = J.effectCopy(env, DD_OPTS, [['Verse', 'Chorus', 'Bridge'], ['Soft', 'Normal', 'Loud'], ['Slow', 'Mid', 'Fast'], ['昨天', '今天', '明天'], ['一人', '两人', '大家']], [['Verse', 'Chorus', 'Bridge'], ['Soft', 'Normal', 'Loud'], ['Slow', 'Mid', 'Fast'], ['昨天', '今天', '明天'], ['一人', '兩人', '大家']])[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 1.9, sel = 1 + (J.h(p.seed, 2) % 2);
   const w = Math.max(...opts.map(s => tw(env, s, fs, bf))) + fs * 3.4, h = rh * 4 + 6 * u;
   const sp = spot(env, bb, w, h, p, 22 * u), A = o * (sp.ok ? 1 : 0.3), ac = ACC(env), c = env.sc.fg, lw = Math.max(1, 1.3 * u);
   const dur = Math.max(0.6, env.cut.dur || 1), tc = Math.min(1.45, dur * 0.62), open = ein(t, 0.3, 0.3) * (1 - ein(t, 0.25, tc, E.inOutCubic)), closed = t > tc + 0.1;
@@ -39739,7 +39748,7 @@ D('xnSearch', '検索窓', 'Search Field', ['pop', 'graphic', 'editorial'], 1, '
   if (!done || Math.floor(env.lt * 2.4) % 2 === 0) segs(env, [[tx + tw(env, s, fs, bf) + 3 * u, my - fs * 0.6, tx + tw(env, s, fs, bf) + 3 * u, my + fs * 0.6]], ACC(env), Math.max(1.5, 2 * u), A * cl((t - 0.2) * 5));
   if (done) {
     const e2 = ein(t, 0.3, 0.3 + dT + 0.15), n = 100 + J.h(p.seed, 9) % 9000, ns = n.toLocaleString('en-US');
-    T(env, noNo(env) ? (cj ? '検索結果' : 'results') : (cj ? `約 ${ns} 件` : `${ns} results`), sp.x + fs * 1.0, sp.y + hgt + fs * 1.0, fs * 0.8, { f: bf, a: A * e2 * 0.85 });
+    T(env, noNo(env) ? (cj ? J.effectCopy(env, '検索結果', '搜索结果', '搜尋結果') : 'results') : (cj ? J.effectCopy(env, `約 ${ns} 件`, `约 ${ns} 条`, `約 ${ns} 條`) : `${ns} results`), sp.x + fs * 1.0, sp.y + hgt + fs * 1.0, fs * 0.8, { f: bf, a: A * e2 * 0.85 });
   }
 });
 
@@ -39773,7 +39782,7 @@ D('xnTyping', '入力中', 'Typing Dots', ['pop', 'emotional', 'calm'], 0.8, 'do
     dot(env, x0 + bwid / 2 + (i - 1) * R * 2.6, sp.y + bht / 2 - b * R * 1.3, R * (0.85 + 0.15 * b), p.accent ? onC(env, fillC) : env.sc.fg, A * (0.55 + 0.45 * b));
   }
   ctx.restore();
-  T(env, cj ? '入力中…' : 'typing…', rt ? x0 + bwid - R : x0 + R, sp.y + bht + fs * 1.0, fs, { f: bf, al: rt ? 'right' : 'left', a: A * ein(t, 0.3, 0.3) * 0.85 });
+  T(env, cj ? J.effectCopy(env, '入力中…', '正在输入…', '正在輸入…') : 'typing…', rt ? x0 + bwid - R : x0 + R, sp.y + bht + fs * 1.0, fs, { f: bf, al: rt ? 'right' : 'left', a: A * ein(t, 0.3, 0.3) * 0.85 });
 });
 
 /* ============================================================ calendar / clock / ticker */
@@ -49536,7 +49545,7 @@ reg('xaThumbIndex', {
   render(env) {
     const { W, H, sc, cut, Pm, M, port, txt, out, lw, ls, no } = base(env);
     const nT = Pm.nT, act = Pm.act % nT, right = Pm.side === 'r', th = (H * 0.84) / nT, tw = M * 0.1, y0 = H * 0.08;
-    const set = isLatinT(txt) ? 'ABCDEFGH' : 'あかさたなはまや', dim = dimOf(sc), plate = pickPlate(sc, Pm.col), pon = onCol(sc, plate);
+    const set = isLatinT(txt) ? 'ABCDEFGH' : J.effectCopy(env, 'あかさたなはまや', '一二三四五六七八'), dim = dimOf(sc), plate = pickPlate(sc, Pm.col), pon = onCol(sc, plate);
     const first = slotsOf(txt).find(c => !isSp(c) && !J.isPunct(c)) || '・';
     let ay = 0, aw = 0;
     for (let i = 0; i < nT; i++) {
@@ -49777,14 +49786,14 @@ reg('xaErrata', {
   plan(rng, cut, st) { return { font: rng.pick(fontsOf(st, ['serif', 'display'])), strike: rng.pick(['line', 'double', 'wave']), pg: rng.int(3, 240), ln: rng.int(1, 24) }; },
   render(env) {
     const { W, H, sc, cut, Pm, M, port, txt, out, lw, ls, no } = base(env);
-    const latin = isLatinT(txt), labs = latin ? ['FOR', 'READ'] : ['誤', '正'];
+    const latin = isLatinT(txt), labs = latin ? ['FOR', 'READ'] : J.effectCopy(env, ['誤', '正'], ['误', '正'], ['誤', '正']);
     const tw = W * 0.86, x0 = W * 0.07, lc = M * (latin ? 0.15 : 0.12), hh = ls * 2.4, h1 = H * (port ? 0.2 : 0.25), h2 = H * (port ? 0.38 : 0.44), th = hh + h1 + h2, y0 = (H - th) / 2;
     const acc = accentOn(sc), pad = M * 0.035, o = { lead: 1.2, track: 0.03 }, e = inE(env, 0.6) * out, la = inC(env, 0.3, 0.2) * out;
     R(env, x0, y0 + hh - M * 0.005, tw * e, M * 0.005, sc.fg, 1);
     Ln(env, x0, y0 + hh + h1, x0 + tw * e, y0 + hh + h1, sc.sub, lw, 0.8);
     R(env, x0 + tw * (1 - e), y0 + th, tw * e, M * 0.005, sc.fg, 1);
     Ln(env, x0 + lc, y0 + hh, x0 + lc, y0 + hh + (h1 + h2) * e, sc.sub, lw, 0.8);
-    label(env, latin ? 'ERRATA' : '正誤表', x0, y0 + hh * 0.42, { font: bodyF(env), size: ls * 1.25, color: sc.fg, alpha: la, track: 0.3 });
+    label(env, latin ? 'ERRATA' : J.effectCopy(env, '正誤表', '勘误表', '勘誤表'), x0, y0 + hh * 0.42, { font: bodyF(env), size: ls * 1.25, color: sc.fg, alpha: la, track: 0.3 });
     label(env, `p.${Pm.pg}  l.${Pm.ln}`, x0 + tw, y0 + hh * 0.42, { align: 'right', alpha: la });
     const lsz2 = latin ? lc * 0.24 : lc * 0.44;
     label(env, labs[0], x0 + lc / 2, y0 + hh + h1 / 2, { align: 'center', font: bodyF(env), size: lsz2, color: sc.sub, alpha: la, track: 0.05 });
@@ -50070,7 +50079,7 @@ reg('xaCutLine', {
       env.circle(px, yl, lw * 2.2, acc, null, 1, a, false);
     }
     const la = inC(env, 0.3, 0.3) * out, latin = isLatinT(txt);
-    label(env, latin ? 'CUT HERE' : 'キリトリ', d > 0 ? W * 0.93 : W * 0.07, yl + (low ? -1 : 1) * ls * 1.1, { align: d > 0 ? 'right' : 'left', font: bodyF(env), alpha: la, size: ls * 0.9, track: 0.3 });
+    label(env, latin ? 'CUT HERE' : J.effectCopy(env, 'キリトリ', '裁切线', '裁切線'), d > 0 ? W * 0.93 : W * 0.07, yl + (low ? -1 : 1) * ls * 1.1, { align: d > 0 ? 'right' : 'left', font: bodyF(env), alpha: la, size: ls * 0.9, track: 0.3 });
     // stub
     label(env, `No.${String(1 + (J.h(cut.seed, 5) % 9999)).padStart(4, '0')}`, W * 0.07, scy - sh * 0.2, { alpha: la, color: acc });
     if (Pm.stub === 'bar') { greek(env, W * 0.07, scy - sh * 0.02, W * 0.32, 2, ls * 1.2, dimOf(sc), la, cut.seed, inE(env, 0.5, 0.3)); barcode(env, W * 0.93 - W * 0.3, scy - sh * 0.22, W * 0.3, sh * 0.44, sc.sub, la, cut.seed, inE(env, 0.6, 0.3)); }
@@ -50238,7 +50247,9 @@ reg('xaNutrition', {
     const bw = port ? W * 0.84 : Math.min(W * 0.52, H * 0.95), bh = H * 0.84, x0 = (W - bw) / 2, y0 = (H - bh) / 2, p = bw * 0.055;
     const paper = paperOf(sc), ink = Pm.inv ? onCol(sc, paper) : sc.fg, sub = Pm.inv ? J.mix(paper, ink, 0.6) : sc.sub;
     const chars = [...txt.replace(/\s+/g, '')], nK = chars.filter(J.isKanji).length, nKa = chars.filter(c => J.isHira(c) || J.isKata(c)).length, nL = chars.filter(J.isLatin).length;
-    const rowsD = [['GLYPHS', chars.length], ['KANJI', nK], ['KANA', nKa], ['LATIN', nL], ['LINE No.', no], ['SECONDS', (cut.dur || 0).toFixed(1)]];
+    const fields = J.effectCopy(env, ['GLYPHS', 'KANJI', 'KANA', 'LATIN', 'LINE No.', 'SECONDS'],
+      ['字数', '汉字', '假名', '拉丁字母', '行号', '秒数'], ['字數', '漢字', '假名', '拉丁字母', '行號', '秒數']);
+    const rowsD = [chars.length, nK, nKa, nL, no, (cut.dur || 0).toFixed(1)].map((value, i) => [fields[i], value]);
     return tilted(env, W / 2, H / 2, Pm.tilt, () => {
       const e = inE(env, 0.5), bl = Math.max(4, M * 0.007);
       if (Pm.inv) R(env, x0 + (bw / 2) * (1 - e), y0, bw * e, bh, paper, out);
@@ -51875,7 +51886,7 @@ reg('xcWeather', {
     return pose(env, W / 2, H / 2, { s: 0.92 + 0.08 * e }, () => {
       g.rr(x0, y0, cw, ch, M * 0.05, win);
       const ie = inB(env, 0.5, 0.1, 1.3), gi = G(env, g.a * J.clamp((lt - 0.1) / 0.15));
-      const days = isLatinT(txt) ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] : ['月', '火', '水', '木', '金', '土', '日'], d0 = J.h(cut.seed, 6) % 7, kinds = ['sun', 'cloud', 'rain', 'cloudsun'];
+      const days = isLatinT(txt) ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] : J.effectCopy(env, ['月', '火', '水', '木', '金', '土', '日'], ['一', '二', '三', '四', '五', '六', '日']), d0 = J.h(cut.seed, 6) % 7, kinds = ['sun', 'cloud', 'rain', 'cloudsun'];
       const week = (wx, wy, ww, wh, nd) => {
         g.l(wx, wy, wx + ww * inE(env, 0.5, 0.2), wy, faint, lw);
         for (let i = 0; i < nd; i++) {
@@ -52349,7 +52360,7 @@ reg('xcSelect', {
       const bar = paperOf(sc), bin = onCol(sc, bar), be = inB(env, 0.35, 0.5 + 0.12 * L, 1.5), bw = Math.min(W * 0.8, M * 0.62), bh = M * 0.08, by = ly(0) - pitch / 2 - bh - M * 0.035, gb = G(env, J.clamp((lt - 0.5 - 0.12 * L) / 0.1) * out);
       if (be > 0) pose(env, W / 2, by + bh, { s: be }, () => {
         gb.rr(W / 2 - bw / 2, by, bw, bh, bh * 0.25, bar); gb.p([[W / 2 - bh * 0.22, by + bh - 1], [W / 2 + bh * 0.22, by + bh - 1], [W / 2, by + bh * 1.26]], bar);
-        const labs = isLatinT(txt) ? ['Copy', 'Share', 'Search'] : ['コピー', '共有', '検索'];
+        const labs = isLatinT(txt) ? ['Copy', 'Share', 'Search'] : J.effectCopy(env, ['コピー', '共有', '検索'], ['复制', '分享', '搜索'], ['複製', '分享', '搜尋']);
         labs.forEach((s, i) => { gb.t(s, W / 2 + (i - 1) * bw / 3, by + bh / 2, { color: bin, align: 'center', font: bodyF(env), size: bh * 0.36, track: 0.04 }); if (i) gb.l(W / 2 + (i - 1.5) * bw / 3, by + bh * 0.25, W / 2 + (i - 1.5) * bw / 3, by + bh * 0.75, bin, lw, 0.35); });
       });
     } else {
@@ -52358,7 +52369,7 @@ reg('xcSelect', {
       const gm = G(env, J.clamp((lt - 0.55 - 0.12 * L) / 0.1) * out);
       if (me > 0) pose(env, mx, my, { s: me }, () => {
         gm.r(mx + M * 0.008, my + M * 0.01, mw2, mh, sc.dim, 0.7); gm.r(mx, my, mw2, mh, menu); gm.rs(mx, my, mw2, mh, 0, min, lw * 1.5);
-        const hot = Math.min(2, Math.floor(Math.max(0, lt - 0.8 - 0.12 * L) / 0.35)), labs = isLatinT(txt) ? ['Copy', 'Cut', 'Search…'] : ['コピー', '切り取り', '検索…'], keys = ['Ctrl+C', 'Ctrl+X', ''];
+        const hot = Math.min(2, Math.floor(Math.max(0, lt - 0.8 - 0.12 * L) / 0.35)), labs = isLatinT(txt) ? ['Copy', 'Cut', 'Search…'] : J.effectCopy(env, ['コピー', '切り取り', '検索…'], ['复制', '剪切', '搜索…'], ['複製', '剪下', '搜尋…']), keys = ['Ctrl+C', 'Ctrl+X', ''];
         labs.forEach((s, i) => { const ry = my + M * 0.008 + i * rh; if (i === hot) gm.r(mx + lw * 2, ry, mw2 - lw * 4, rh, accOn(sc, menu)); const c = i === hot ? onCol(sc, accOn(sc, menu)) : min; gm.t(s, mx + rh * 0.5, ry + rh / 2, { color: c, font: bodyF(env), size: rh * 0.44, track: 0.04 }); gm.t(keys[i], mx + mw2 - rh * 0.4, ry + rh / 2, { color: c, align: 'right', size: rh * 0.34, alpha: 0.7 }); });
       });
     }
@@ -54862,7 +54873,7 @@ regL('tzTrackClose', {
     if (la > 0) {
       const y = H / 2 + ((L - 1) / 2) * size * leadK + size * 0.68 + ls * 1.7;
       const latin = isLatinT(txt) || !Pm.jp;
-      label(env, `${latin ? 'TRACKING' : '字送り'}  +${String(Math.max(0, val)).padStart(3, '0')}`, W / 2, y, { alpha: la, align: 'center', font: latin ? monoF(env) : bodyF(env), size: ls * 0.9 });
+      label(env, `${latin ? 'TRACKING' : J.effectCopy(env, '字送り', '字距')}  +${String(Math.max(0, val)).padStart(3, '0')}`, W / 2, y, { alpha: la, align: 'center', font: latin ? monoF(env) : bodyF(env), size: ls * 0.9 });
     }
     return bb;
   },
@@ -55143,7 +55154,7 @@ regL('tzWideOne', {
         env.line([[xa, yd], [xb, yd]], sc.sub, lw, 0.8 * a, false);
         env.line([[xa, yd - t], [xa, yd + t]], sc.sub, lw, 0.8 * a, false); env.line([[xb, yd - t], [xb, yd + t]], sc.sub, lw, 0.8 * a, false);
         const latin = isLatinT(txt);
-        if (li === L - 1 || size * (leadK - 1) > ls * 2.4) label(env, `${latin ? 'WIDTH' : '平体'} ${Math.round(sx * 100)}%`, (xa + xb) / 2, yd + ls * 1.1, { alpha: a, size: ls, align: 'center', font: latin ? monoF(env) : bodyF(env) });
+        if (li === L - 1 || size * (leadK - 1) > ls * 2.4) label(env, `${latin ? 'WIDTH' : J.effectCopy(env, '平体', '字宽', '字寬')} ${Math.round(sx * 100)}%`, (xa + xb) / 2, yd + ls * 1.1, { alpha: a, size: ls, align: 'center', font: latin ? monoF(env) : bodyF(env) });
       }
     });
     return bb;
@@ -57059,7 +57070,7 @@ reg('wzBanzuke', {
       g.r(x0, y0, pw, ph, C.fill);
       g.rs(x0 + bd, y0 + bd, pw - bd * 2, ph - bd * 2, 0, C.text, bd * 0.35);
       g.r(x0 + bd * 2, by0 - lw * 1.5, ux * inE(env, 0.5, 0.1), lw * 3, C.text);
-      g.t('第' + kanjiNum(no) + '番', cx, y0 + bd * 1.6 + hd / 2, { size: hd * 0.5, color: C.text, track: 0.5, font: Pm.font });
+      g.t(J.effectCopy(env, '第' + kanjiNum(no) + '番', '第' + kanjiNum(no) + '段'), cx, y0 + bd * 1.6 + hd / 2, { size: hd * 0.5, color: C.text, track: 0.5, font: Pm.font });
       let bb = null, xr = x0 + pw - bd * 2;
       for (let i = 0; i < T; i++) {
         const cw = ux * ws[i] / sum, xc = xr - cw / 2, ei = inE(env, 0.45, 0.1 + i * 0.05);

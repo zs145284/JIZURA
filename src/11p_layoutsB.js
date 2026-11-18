@@ -1133,8 +1133,8 @@ J.register('layout', 'credits', {
     const vals = [], seen = new Set();
     const add = (r, v) => { v = String(v || '').trim(); if (v && !seen.has(v)) { seen.add(v); vals.push([r, v]); } };
     const line = cut.lineText || cut.text;
-    add('詞', line);
-    J.chunkText(line).forEach((c, i) => add(i === 0 ? '語' : '', c));
+    add(J.effectCopy(env, '詞', '词', '詞'), line);
+    J.chunkText(line).forEach((c, i) => add(i === 0 ? J.effectCopy(env, '語', '语', '語') : '', c));
     (J.segments(line) || []).forEach(g => { if (J.glyphCount(g) >= 2) add('', g); });
     if (rom) add('READING', rom);
     if (cut.note) add('NOTE', cut.note);

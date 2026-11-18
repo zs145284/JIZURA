@@ -275,7 +275,7 @@ reg('xaThumbIndex', {
   render(env) {
     const { W, H, sc, cut, Pm, M, port, txt, out, lw, ls, no } = base(env);
     const nT = Pm.nT, act = Pm.act % nT, right = Pm.side === 'r', th = (H * 0.84) / nT, tw = M * 0.1, y0 = H * 0.08;
-    const set = isLatinT(txt) ? 'ABCDEFGH' : 'あかさたなはまや', dim = dimOf(sc), plate = pickPlate(sc, Pm.col), pon = onCol(sc, plate);
+    const set = isLatinT(txt) ? 'ABCDEFGH' : J.effectCopy(env, 'あかさたなはまや', '一二三四五六七八'), dim = dimOf(sc), plate = pickPlate(sc, Pm.col), pon = onCol(sc, plate);
     const first = slotsOf(txt).find(c => !isSp(c) && !J.isPunct(c)) || '・';
     let ay = 0, aw = 0;
     for (let i = 0; i < nT; i++) {
@@ -516,14 +516,14 @@ reg('xaErrata', {
   plan(rng, cut, st) { return { font: rng.pick(fontsOf(st, ['serif', 'display'])), strike: rng.pick(['line', 'double', 'wave']), pg: rng.int(3, 240), ln: rng.int(1, 24) }; },
   render(env) {
     const { W, H, sc, cut, Pm, M, port, txt, out, lw, ls, no } = base(env);
-    const latin = isLatinT(txt), labs = latin ? ['FOR', 'READ'] : ['誤', '正'];
+    const latin = isLatinT(txt), labs = latin ? ['FOR', 'READ'] : J.effectCopy(env, ['誤', '正'], ['误', '正'], ['誤', '正']);
     const tw = W * 0.86, x0 = W * 0.07, lc = M * (latin ? 0.15 : 0.12), hh = ls * 2.4, h1 = H * (port ? 0.2 : 0.25), h2 = H * (port ? 0.38 : 0.44), th = hh + h1 + h2, y0 = (H - th) / 2;
     const acc = accentOn(sc), pad = M * 0.035, o = { lead: 1.2, track: 0.03 }, e = inE(env, 0.6) * out, la = inC(env, 0.3, 0.2) * out;
     R(env, x0, y0 + hh - M * 0.005, tw * e, M * 0.005, sc.fg, 1);
     Ln(env, x0, y0 + hh + h1, x0 + tw * e, y0 + hh + h1, sc.sub, lw, 0.8);
     R(env, x0 + tw * (1 - e), y0 + th, tw * e, M * 0.005, sc.fg, 1);
     Ln(env, x0 + lc, y0 + hh, x0 + lc, y0 + hh + (h1 + h2) * e, sc.sub, lw, 0.8);
-    label(env, latin ? 'ERRATA' : '正誤表', x0, y0 + hh * 0.42, { font: bodyF(env), size: ls * 1.25, color: sc.fg, alpha: la, track: 0.3 });
+    label(env, latin ? 'ERRATA' : J.effectCopy(env, '正誤表', '勘误表', '勘誤表'), x0, y0 + hh * 0.42, { font: bodyF(env), size: ls * 1.25, color: sc.fg, alpha: la, track: 0.3 });
     label(env, `p.${Pm.pg}  l.${Pm.ln}`, x0 + tw, y0 + hh * 0.42, { align: 'right', alpha: la });
     const lsz2 = latin ? lc * 0.24 : lc * 0.44;
     label(env, labs[0], x0 + lc / 2, y0 + hh + h1 / 2, { align: 'center', font: bodyF(env), size: lsz2, color: sc.sub, alpha: la, track: 0.05 });
@@ -809,7 +809,7 @@ reg('xaCutLine', {
       env.circle(px, yl, lw * 2.2, acc, null, 1, a, false);
     }
     const la = inC(env, 0.3, 0.3) * out, latin = isLatinT(txt);
-    label(env, latin ? 'CUT HERE' : 'キリトリ', d > 0 ? W * 0.93 : W * 0.07, yl + (low ? -1 : 1) * ls * 1.1, { align: d > 0 ? 'right' : 'left', font: bodyF(env), alpha: la, size: ls * 0.9, track: 0.3 });
+    label(env, latin ? 'CUT HERE' : J.effectCopy(env, 'キリトリ', '裁切线', '裁切線'), d > 0 ? W * 0.93 : W * 0.07, yl + (low ? -1 : 1) * ls * 1.1, { align: d > 0 ? 'right' : 'left', font: bodyF(env), alpha: la, size: ls * 0.9, track: 0.3 });
     // stub
     label(env, `No.${String(1 + (J.h(cut.seed, 5) % 9999)).padStart(4, '0')}`, W * 0.07, scy - sh * 0.2, { alpha: la, color: acc });
     if (Pm.stub === 'bar') { greek(env, W * 0.07, scy - sh * 0.02, W * 0.32, 2, ls * 1.2, dimOf(sc), la, cut.seed, inE(env, 0.5, 0.3)); barcode(env, W * 0.93 - W * 0.3, scy - sh * 0.22, W * 0.3, sh * 0.44, sc.sub, la, cut.seed, inE(env, 0.6, 0.3)); }
@@ -977,7 +977,9 @@ reg('xaNutrition', {
     const bw = port ? W * 0.84 : Math.min(W * 0.52, H * 0.95), bh = H * 0.84, x0 = (W - bw) / 2, y0 = (H - bh) / 2, p = bw * 0.055;
     const paper = paperOf(sc), ink = Pm.inv ? onCol(sc, paper) : sc.fg, sub = Pm.inv ? J.mix(paper, ink, 0.6) : sc.sub;
     const chars = [...txt.replace(/\s+/g, '')], nK = chars.filter(J.isKanji).length, nKa = chars.filter(c => J.isHira(c) || J.isKata(c)).length, nL = chars.filter(J.isLatin).length;
-    const rowsD = [['GLYPHS', chars.length], ['KANJI', nK], ['KANA', nKa], ['LATIN', nL], ['LINE No.', no], ['SECONDS', (cut.dur || 0).toFixed(1)]];
+    const fields = J.effectCopy(env, ['GLYPHS', 'KANJI', 'KANA', 'LATIN', 'LINE No.', 'SECONDS'],
+      ['字数', '汉字', '假名', '拉丁字母', '行号', '秒数'], ['字數', '漢字', '假名', '拉丁字母', '行號', '秒數']);
+    const rowsD = [chars.length, nK, nKa, nL, no, (cut.dur || 0).toFixed(1)].map((value, i) => [fields[i], value]);
     return tilted(env, W / 2, H / 2, Pm.tilt, () => {
       const e = inE(env, 0.5), bl = Math.max(4, M * 0.007);
       if (Pm.inv) R(env, x0 + (bw / 2) * (1 - e), y0, bw * e, bh, paper, out);

@@ -290,7 +290,7 @@ D('xnGlyphStats', '字種の内訳', 'Glyph Breakdown', ['editorial', 'graphic',
   const g = glyphs(cutText(env)).filter(c => !(J.isPunct && J.isPunct(c))); if (!g.length) return;
   const cnt = [0, 0, 0, 0];
   for (const c of g) cnt[J.isKanji(c) ? 0 : (J.isHira(c) || J.isKata(c)) ? 1 : (J.isLatin && J.isLatin(c)) ? 2 : 3]++;
-  const names = ['漢字', 'かな', 'ABC', '他'], pal = [env.sc.fg, ACC(env), ACC2(env), SUB(env)]; let ci = 0;
+  const names = J.effectCopy(env, ['漢字', 'かな', 'ABC', '他'], ['汉字', '假名', 'ABC', '其他'], ['漢字', '假名', 'ABC', '其他']), pal = [env.sc.fg, ACC(env), ACC2(env), SUB(env)]; let ci = 0;
   const fs = FS(env) * 0.9, bf = bodyF(env), w = cl(bw(bb) * 0.6, 220 * u, 340 * u), barH = Math.max(6, 9 * u), h = fs * 1.5 + barH + fs * 1.9;
   const sp = spot(env, bb, w, h, p, 22 * u), A = o * (sp.ok ? 1 : 0.3), e = ein(t, 0.55, 0.05);
   T(env, 'GLYPHS', sp.x, sp.y + fs * 0.5, fs * 0.8, { a: A * ein(t, 0.3), tr: 0.14 });
@@ -394,7 +394,7 @@ D('xnVersionTags', '版数タグ', 'Version Tags', ['pop', 'graphic', 'editorial
 D('xnTooltip', 'ヒント吹き出し', 'Tooltip', ['pop', 'graphic', 'editorial'], 0.9, 'leaders', (env, bb, p, t, o, u) => {
   const { W, H } = env, m = MG(env), fs = FS(env) * 0.9, bf = bodyF(env);
   const rj = J.romaji(cutText(env).replace(/[、。！？!?,.・「」]/g, ' ').replace(/\s+/g, ' ').trim()), cj = hasCJK(cutText(env));
-  const txt = p.v % 3 === 0 ? String((env.st.fonts.display && env.st.fonts.display[0]) || 'display').replace(/_/g, ' ') : p.v % 3 === 1 ? (cj ? 'クリックして編集' : 'click to edit') : (rj ? clip(rj, 22) : cj ? 'テキストレイヤー' : 'text layer');
+  const txt = p.v % 3 === 0 ? String((env.st.fonts.display && env.st.fonts.display[0]) || 'display').replace(/_/g, ' ') : p.v % 3 === 1 ? (cj ? J.effectCopy(env, 'クリックして編集', '点击编辑', '點擊編輯') : 'click to edit') : (rj ? clip(rj, 22) : cj ? J.effectCopy(env, 'テキストレイヤー', '文本图层', '文字圖層') : 'text layer');
   const w = tw(env, txt, fs, bf) + fs * 1.6, h = fs * 2, tip = 9 * u, gap = 10 * u + bh(bb) * 0.04;
   let below = !!p.low; if (below ? bb.y1 + gap + tip + h > H - m : bb.y0 - gap - tip - h < m) below = !below;
   const ok = below ? bb.y1 + gap + tip + h <= H - m * 0.6 : bb.y0 - gap - tip - h >= m * 0.6, A = o * (ok ? 1 : 0.3);
@@ -493,7 +493,7 @@ D('xnAxes', 'グラフ軸', 'Chart Axes', ['editorial', 'graphic', 'calm'], 1, '
   }
   for (let i = 0; i < 3; i++) { const y = lerp(bb.y1, bb.y0, i / 2); if (y >= yy) tk.push([ox, y, ox - 6 * u, y]); }
   segs(env, tk, c, lw, o * 0.9);
-  const cj = hasCJK(cutText(env)), bf = bodyF(env), e3 = ein(t, 0.35, 0.45), tx = cj ? ['とき', 'ことば'] : ['time', 'words'], ty = cj ? ['想い', '声'] : ['feeling', 'voice'];
+  const cj = hasCJK(cutText(env)), bf = bodyF(env), e3 = ein(t, 0.35, 0.45), tx = cj ? J.effectCopy(env, ['とき', 'ことば'], ['时间', '文字'], ['時間', '文字']) : ['time', 'words'], ty = cj ? J.effectCopy(env, ['想い', '声'], ['思念', '声音'], ['思念', '聲音']) : ['feeling', 'voice'];
   if (xe - bb.x1 > 10 * u) T(env, tx[p.v % 2], xe, oy - fs * 0.9, fs, { f: bf, al: 'right', a: o * e3 * 0.9 });
   if (bb.y0 - ye > fs * 1.7) T(env, ty[p.v % 2], ox + 9 * u, ye + fs * 0.6, fs, { f: bf, a: o * e3 * 0.9 });
 }, 'front');
@@ -604,7 +604,7 @@ D('xnBattery', '電池残量', 'Status Icons', ['pop', 'graphic', 'glitch'], 0.7
 /* スライダー — labelled range sliders whose knobs glide to their values, with a readout each */
 const SL_LABS = [['TEMPO', 'PITCH', 'REVERB'], ['GAIN', 'PAN', 'ECHO'], ['WARMTH', 'BLUR', 'GRAIN'], ['想い', '距離', '温度'], ['きもち', 'ことば', 'おと']];
 D('xnSliders', 'スライダー', 'Sliders', ['pop', 'graphic', 'editorial'], 1, 'bars', (env, bb, p, t, o, u) => {
-  const fs = FS(env) * 0.85, bf = bodyF(env), n = Math.min(3, 1 + p.n), labs = SL_LABS[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 2.1, tr = 150 * u, nn = noNo(env);
+  const fs = FS(env) * 0.85, bf = bodyF(env), n = Math.min(3, 1 + p.n), labs = J.effectCopy(env, SL_LABS, [['TEMPO', 'PITCH', 'REVERB'], ['GAIN', 'PAN', 'ECHO'], ['WARMTH', 'BLUR', 'GRAIN'], ['思念', '距离', '温度'], ['心情', '文字', '声音']], [['TEMPO', 'PITCH', 'REVERB'], ['GAIN', 'PAN', 'ECHO'], ['WARMTH', 'BLUR', 'GRAIN'], ['思念', '距離', '溫度'], ['心情', '文字', '聲音']])[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 2.1, tr = 150 * u, nn = noNo(env);
   const lw0 = Math.max(...labs.slice(0, n).map(s => tw(env, s, fs, bf, 0.1))) + fs * 0.9, w = lw0 + tr + (nn ? 8 * u : fs * 2.2), h = n * rh;
   const sp = spot(env, bb, w, h, p, 22 * u), A = o * (sp.ok ? 1 : 0.3), ac = ACC(env);
   for (let i = 0; i < n; i++) {
@@ -621,7 +621,7 @@ D('xnSliders', 'スライダー', 'Sliders', ['pop', 'graphic', 'editorial'], 1,
 /* プルダウン — a select box that drops open, runs its highlight down the options, picks one and closes */
 const DD_OPTS = [['Verse', 'Chorus', 'Bridge'], ['Soft', 'Normal', 'Loud'], ['Slow', 'Mid', 'Fast'], ['きのう', 'きょう', 'あした'], ['ひとり', 'ふたり', 'みんな']];
 D('xnDropdown', 'プルダウン', 'Dropdown', ['pop', 'graphic'], 0.8, 'shapes', (env, bb, p, t, o, u) => {
-  const fs = FS(env) * 0.92, bf = bodyF(env), opts = DD_OPTS[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 1.9, sel = 1 + (J.h(p.seed, 2) % 2);
+  const fs = FS(env) * 0.92, bf = bodyF(env), opts = J.effectCopy(env, DD_OPTS, [['Verse', 'Chorus', 'Bridge'], ['Soft', 'Normal', 'Loud'], ['Slow', 'Mid', 'Fast'], ['昨天', '今天', '明天'], ['一人', '两人', '大家']], [['Verse', 'Chorus', 'Bridge'], ['Soft', 'Normal', 'Loud'], ['Slow', 'Mid', 'Fast'], ['昨天', '今天', '明天'], ['一人', '兩人', '大家']])[p.v % (hasCJK(cutText(env)) ? 5 : 3)], rh = fs * 1.9, sel = 1 + (J.h(p.seed, 2) % 2);
   const w = Math.max(...opts.map(s => tw(env, s, fs, bf))) + fs * 3.4, h = rh * 4 + 6 * u;
   const sp = spot(env, bb, w, h, p, 22 * u), A = o * (sp.ok ? 1 : 0.3), ac = ACC(env), c = env.sc.fg, lw = Math.max(1, 1.3 * u);
   const dur = Math.max(0.6, env.cut.dur || 1), tc = Math.min(1.45, dur * 0.62), open = ein(t, 0.3, 0.3) * (1 - ein(t, 0.25, tc, E.inOutCubic)), closed = t > tc + 0.1;
@@ -673,7 +673,7 @@ D('xnSearch', '検索窓', 'Search Field', ['pop', 'graphic', 'editorial'], 1, '
   if (!done || Math.floor(env.lt * 2.4) % 2 === 0) segs(env, [[tx + tw(env, s, fs, bf) + 3 * u, my - fs * 0.6, tx + tw(env, s, fs, bf) + 3 * u, my + fs * 0.6]], ACC(env), Math.max(1.5, 2 * u), A * cl((t - 0.2) * 5));
   if (done) {
     const e2 = ein(t, 0.3, 0.3 + dT + 0.15), n = 100 + J.h(p.seed, 9) % 9000, ns = n.toLocaleString('en-US');
-    T(env, noNo(env) ? (cj ? '検索結果' : 'results') : (cj ? `約 ${ns} 件` : `${ns} results`), sp.x + fs * 1.0, sp.y + hgt + fs * 1.0, fs * 0.8, { f: bf, a: A * e2 * 0.85 });
+    T(env, noNo(env) ? (cj ? J.effectCopy(env, '検索結果', '搜索结果', '搜尋結果') : 'results') : (cj ? J.effectCopy(env, `約 ${ns} 件`, `约 ${ns} 条`, `約 ${ns} 條`) : `${ns} results`), sp.x + fs * 1.0, sp.y + hgt + fs * 1.0, fs * 0.8, { f: bf, a: A * e2 * 0.85 });
   }
 });
 
@@ -707,7 +707,7 @@ D('xnTyping', '入力中', 'Typing Dots', ['pop', 'emotional', 'calm'], 0.8, 'do
     dot(env, x0 + bwid / 2 + (i - 1) * R * 2.6, sp.y + bht / 2 - b * R * 1.3, R * (0.85 + 0.15 * b), p.accent ? onC(env, fillC) : env.sc.fg, A * (0.55 + 0.45 * b));
   }
   ctx.restore();
-  T(env, cj ? '入力中…' : 'typing…', rt ? x0 + bwid - R : x0 + R, sp.y + bht + fs * 1.0, fs, { f: bf, al: rt ? 'right' : 'left', a: A * ein(t, 0.3, 0.3) * 0.85 });
+  T(env, cj ? J.effectCopy(env, '入力中…', '正在输入…', '正在輸入…') : 'typing…', rt ? x0 + bwid - R : x0 + R, sp.y + bht + fs * 1.0, fs, { f: bf, al: rt ? 'right' : 'left', a: A * ein(t, 0.3, 0.3) * 0.85 });
 });
 
 /* ============================================================ calendar / clock / ticker */

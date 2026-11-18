@@ -442,7 +442,7 @@ reg('xcWeather', {
     return pose(env, W / 2, H / 2, { s: 0.92 + 0.08 * e }, () => {
       g.rr(x0, y0, cw, ch, M * 0.05, win);
       const ie = inB(env, 0.5, 0.1, 1.3), gi = G(env, g.a * J.clamp((lt - 0.1) / 0.15));
-      const days = isLatinT(txt) ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] : ['月', '火', '水', '木', '金', '土', '日'], d0 = J.h(cut.seed, 6) % 7, kinds = ['sun', 'cloud', 'rain', 'cloudsun'];
+      const days = isLatinT(txt) ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] : J.effectCopy(env, ['月', '火', '水', '木', '金', '土', '日'], ['一', '二', '三', '四', '五', '六', '日']), d0 = J.h(cut.seed, 6) % 7, kinds = ['sun', 'cloud', 'rain', 'cloudsun'];
       const week = (wx, wy, ww, wh, nd) => {
         g.l(wx, wy, wx + ww * inE(env, 0.5, 0.2), wy, faint, lw);
         for (let i = 0; i < nd; i++) {
@@ -916,7 +916,7 @@ reg('xcSelect', {
       const bar = paperOf(sc), bin = onCol(sc, bar), be = inB(env, 0.35, 0.5 + 0.12 * L, 1.5), bw = Math.min(W * 0.8, M * 0.62), bh = M * 0.08, by = ly(0) - pitch / 2 - bh - M * 0.035, gb = G(env, J.clamp((lt - 0.5 - 0.12 * L) / 0.1) * out);
       if (be > 0) pose(env, W / 2, by + bh, { s: be }, () => {
         gb.rr(W / 2 - bw / 2, by, bw, bh, bh * 0.25, bar); gb.p([[W / 2 - bh * 0.22, by + bh - 1], [W / 2 + bh * 0.22, by + bh - 1], [W / 2, by + bh * 1.26]], bar);
-        const labs = isLatinT(txt) ? ['Copy', 'Share', 'Search'] : ['コピー', '共有', '検索'];
+        const labs = isLatinT(txt) ? ['Copy', 'Share', 'Search'] : J.effectCopy(env, ['コピー', '共有', '検索'], ['复制', '分享', '搜索'], ['複製', '分享', '搜尋']);
         labs.forEach((s, i) => { gb.t(s, W / 2 + (i - 1) * bw / 3, by + bh / 2, { color: bin, align: 'center', font: bodyF(env), size: bh * 0.36, track: 0.04 }); if (i) gb.l(W / 2 + (i - 1.5) * bw / 3, by + bh * 0.25, W / 2 + (i - 1.5) * bw / 3, by + bh * 0.75, bin, lw, 0.35); });
       });
     } else {
@@ -925,7 +925,7 @@ reg('xcSelect', {
       const gm = G(env, J.clamp((lt - 0.55 - 0.12 * L) / 0.1) * out);
       if (me > 0) pose(env, mx, my, { s: me }, () => {
         gm.r(mx + M * 0.008, my + M * 0.01, mw2, mh, sc.dim, 0.7); gm.r(mx, my, mw2, mh, menu); gm.rs(mx, my, mw2, mh, 0, min, lw * 1.5);
-        const hot = Math.min(2, Math.floor(Math.max(0, lt - 0.8 - 0.12 * L) / 0.35)), labs = isLatinT(txt) ? ['Copy', 'Cut', 'Search…'] : ['コピー', '切り取り', '検索…'], keys = ['Ctrl+C', 'Ctrl+X', ''];
+        const hot = Math.min(2, Math.floor(Math.max(0, lt - 0.8 - 0.12 * L) / 0.35)), labs = isLatinT(txt) ? ['Copy', 'Cut', 'Search…'] : J.effectCopy(env, ['コピー', '切り取り', '検索…'], ['复制', '剪切', '搜索…'], ['複製', '剪下', '搜尋…']), keys = ['Ctrl+C', 'Ctrl+X', ''];
         labs.forEach((s, i) => { const ry = my + M * 0.008 + i * rh; if (i === hot) gm.r(mx + lw * 2, ry, mw2 - lw * 4, rh, accOn(sc, menu)); const c = i === hot ? onCol(sc, accOn(sc, menu)) : min; gm.t(s, mx + rh * 0.5, ry + rh / 2, { color: c, font: bodyF(env), size: rh * 0.44, track: 0.04 }); gm.t(keys[i], mx + mw2 - rh * 0.4, ry + rh / 2, { color: c, align: 'right', size: rh * 0.34, alpha: 0.7 }); });
       });
     }

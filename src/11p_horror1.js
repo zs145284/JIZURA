@@ -324,7 +324,8 @@ reg('hrOuija', {
     const bw = Math.min(W * 0.88, H * (port ? 0.62 : 1.2)), bh = bw * (port ? 0.72 : 0.52), bx = W / 2, by = port ? H * 0.34 : H * 0.36;
     const plate = J.mix(sc.bg, sc.fg, isDark(sc.bg) ? 0.07 : 0.06);
     env.rrect(bx - bw / 2, by - bh / 2, bw, bh, bh * 0.14, plate, inA * out, false, J.mix(sc.bg, sc.sub, 0.6), lw);
-    const rowsSrc = Pm.latin ? [ABC.slice(0, 13), ABC.slice(13), '1234567890'] : [KANA.slice(0, 16), KANA.slice(16, 32), KANA.slice(32)];
+    const boardGlyphs = J.effectCopy(env, KANA, J.POOLS['zh-Hans'].hira, J.POOLS['zh-Hant'].hira).slice(0, KANA.length);
+    const rowsSrc = Pm.latin ? [ABC.slice(0, 13), ABC.slice(13), '1234567890'] : [boardGlyphs.slice(0, 16), boardGlyphs.slice(16, 32), boardGlyphs.slice(32)];
     const cells = [], bf = bh * (Pm.latin ? 0.1 : 0.085);
     rowsSrc.forEach((row, r) => {
       const arr = [...row], n = arr.length, R = bw * (0.64 - r * 0.17), cy = by + bh * (0.52 + r * 0.04), span = (r ? 96 : 112) * (port ? 0.95 : 1);
